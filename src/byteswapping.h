@@ -1,15 +1,9 @@
 #ifndef BYTESWAPPING_H
 #define BYTESWAPPING_H
 
-#ifdef __cplusplus
 #include <cstdint>
 #define BYTESWAP_DECORATION static inline
 #define BYTESWAP_CONSTEXPR constexpr
-#else
-#include <stdint.h>
-#define BYTESWAP_DECORATION static inline
-#define BYTESWAP_CONSTEXPR
-#endif
 
 BYTESWAP_DECORATION BYTESWAP_CONSTEXPR
 uint16_t swap_u16(uint16_t x)
@@ -33,17 +27,38 @@ uint64_t swap_u64(uint64_t x)
 }
 
 BYTESWAP_DECORATION
+int16_t swap_i16(int16_t x)
+{
+    uint16_t const tmp = swap_u16(reinterpret_cast<uint16_t&>(x));
+    return reinterpret_cast<int16_t const&>(tmp);
+}
+
+BYTESWAP_DECORATION
+int32_t swap_i32(int32_t x)
+{
+    uint32_t const tmp = swap_u32(reinterpret_cast<uint32_t&>(x));
+    return reinterpret_cast<int32_t const&>(tmp);
+}
+
+BYTESWAP_DECORATION
+int64_t swap_i64(int64_t x)
+{
+    uint64_t const tmp = swap_u16(reinterpret_cast<uint64_t&>(x));
+    return reinterpret_cast<int64_t const&>(tmp);
+}
+
+BYTESWAP_DECORATION
 float swap_f32(float x)
 {
-  uint32_t const tmp = swap_u32(*reinterpret_cast<uint32_t*>(&x));
-  return *reinterpret_cast<float const*>(&tmp);
+  uint32_t const tmp = swap_u32(reinterpret_cast<uint32_t&>(x));
+  return reinterpret_cast<float const&>(tmp);
 }
 
 BYTESWAP_DECORATION
 double swap_f64(double x)
 {
-  uint64_t const tmp = swap_u64(*reinterpret_cast<uint64_t*>(&x));
-  return *reinterpret_cast<float const*>(&tmp);
+  uint64_t const tmp = swap_u64(reinterpret_cast<uint64_t&>(x));
+  return reinterpret_cast<float const&>(tmp);
 }
 
 #undef BYTESWAP_DECORATION

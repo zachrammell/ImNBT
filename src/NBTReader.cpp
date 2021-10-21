@@ -36,7 +36,7 @@ Reader::~Reader()
 void Reader::EnterRoot()
 {
   AddToCurrentName(root_name);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   if (found != named_tags_.end())
   {
     nesting_info_.emplace(NestingInfo {TAG::End, NestingInfo::ContainerType::Compound, 0, 0});
@@ -51,7 +51,7 @@ bool Reader::OpenCompound(StringView name)
   {
     return false;
   }
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   if (found != named_tags_.end())
   {
     nesting_info_.emplace(NestingInfo {TAG::End, NestingInfo::ContainerType::Compound, 0, 0});
@@ -79,7 +79,7 @@ bool Reader::OpenList(StringView name)
   {
     return false;
   }
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   if (found != named_tags_.end())
   {
     nesting_info_.emplace(
@@ -116,7 +116,7 @@ void Reader::CloseList()
 int8_t Reader::ReadByte(StringView name)
 {
   HandleNesting(name, TAG::Byte);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Byte);
   return found->second.byte_;
@@ -125,7 +125,7 @@ int8_t Reader::ReadByte(StringView name)
 int16_t Reader::ReadShort(StringView name)
 {
   HandleNesting(name, TAG::Short);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Short);
   return found->second.short_;
@@ -134,7 +134,7 @@ int16_t Reader::ReadShort(StringView name)
 int32_t Reader::ReadInt(StringView name)
 {
   HandleNesting(name, TAG::Int);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Int);
   return found->second.int_;
@@ -143,7 +143,7 @@ int32_t Reader::ReadInt(StringView name)
 int64_t Reader::ReadLong(StringView name)
 {
   HandleNesting(name, TAG::Long);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Long);
   return found->second.long_;
@@ -152,7 +152,7 @@ int64_t Reader::ReadLong(StringView name)
 float Reader::ReadFloat(StringView name)
 {
   HandleNesting(name, TAG::Float);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Float);
   return found->second.float_;
@@ -161,7 +161,7 @@ float Reader::ReadFloat(StringView name)
 double Reader::ReadDouble(StringView name)
 {
   HandleNesting(name, TAG::Double);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Double);
   return found->second.double_;
@@ -170,7 +170,7 @@ double Reader::ReadDouble(StringView name)
 std::vector<int8_t> Reader::ReadByteArray(StringView name)
 {
   HandleNesting(name, TAG::Byte_Array);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::Byte_Array);
   std::vector<int8_t> ret {
@@ -182,7 +182,7 @@ std::vector<int8_t> Reader::ReadByteArray(StringView name)
 StringView Reader::ReadString(StringView name)
 {
   HandleNesting(name, TAG::String);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type_ == TAG::String);
   return StringView {
@@ -190,10 +190,10 @@ StringView Reader::ReadString(StringView name)
     static_cast<size_t>(found->second.string_length_)};
 }
 
-std::optional<int8_t> Reader::MaybeReadByte(StringView name)
+Optional<int8_t> Reader::MaybeReadByte(StringView name)
 {
   HandleNesting(name, TAG::Byte);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -203,10 +203,10 @@ std::optional<int8_t> Reader::MaybeReadByte(StringView name)
   return std::nullopt;
 }
 
-std::optional<int16_t> Reader::MaybeReadShort(StringView name)
+Optional<int16_t> Reader::MaybeReadShort(StringView name)
 {
   HandleNesting(name, TAG::Short);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -216,10 +216,10 @@ std::optional<int16_t> Reader::MaybeReadShort(StringView name)
   return std::nullopt;
 }
 
-std::optional<int32_t> Reader::MaybeReadInt(StringView name)
+Optional<int32_t> Reader::MaybeReadInt(StringView name)
 {
   HandleNesting(name, TAG::Int);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -229,10 +229,10 @@ std::optional<int32_t> Reader::MaybeReadInt(StringView name)
   return std::nullopt;
 }
 
-std::optional<int64_t> Reader::MaybeReadLong(StringView name)
+Optional<int64_t> Reader::MaybeReadLong(StringView name)
 {
   HandleNesting(name, TAG::Long);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -242,10 +242,10 @@ std::optional<int64_t> Reader::MaybeReadLong(StringView name)
   return std::nullopt;
 }
 
-std::optional<float> Reader::MaybeReadFloat(StringView name)
+Optional<float> Reader::MaybeReadFloat(StringView name)
 {
   HandleNesting(name, TAG::Float);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -255,10 +255,10 @@ std::optional<float> Reader::MaybeReadFloat(StringView name)
   return std::nullopt;
 }
 
-std::optional<double> Reader::MaybeReadDouble(StringView name)
+Optional<double> Reader::MaybeReadDouble(StringView name)
 {
   HandleNesting(name, TAG::Double);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -268,10 +268,10 @@ std::optional<double> Reader::MaybeReadDouble(StringView name)
   return std::nullopt;
 }
 
-std::optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
+Optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
 {
   HandleNesting(name, TAG::Byte_Array);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
@@ -284,16 +284,16 @@ std::optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
   return std::nullopt;
 }
 
-std::optional<StringView> Reader::MaybeReadString(StringView name)
+Optional<StringView> Reader::MaybeReadString(StringView name)
 {
   HandleNesting(name, TAG::String);
-  auto const found = named_tags_.find(current_name_.c_str());
+  auto const found = named_tags_.find(current_name_);
   PopLatestName();
   if (found != named_tags_.end())
   {
     assert(found->second.type_ == TAG::String);
     return std::make_optional<StringView>(
-      string_pool_.begin() + found->second.string_pool_index,
+      string_pool_.data() + found->second.string_pool_index,
       static_cast<size_t>(found->second.string_length_));
   }
   return std::nullopt;
@@ -341,32 +341,32 @@ StringView Reader::Read(StringView name)
 }
 
 template<>
-std::optional<int8_t> Reader::MaybeRead(StringView name)
+Optional<int8_t> Reader::MaybeRead(StringView name)
 {
   return MaybeReadByte(name);
 }
 template<>
-std::optional<int16_t> Reader::MaybeRead(StringView name)
+Optional<int16_t> Reader::MaybeRead(StringView name)
 {
   return MaybeReadShort(name);
 }
 template<>
-std::optional<int32_t> Reader::MaybeRead(StringView name)
+Optional<int32_t> Reader::MaybeRead(StringView name)
 {
   return MaybeReadInt(name);
 }
 template<>
-std::optional<int64_t> Reader::MaybeRead(StringView name)
+Optional<int64_t> Reader::MaybeRead(StringView name)
 {
   return MaybeReadLong(name);
 }
 template<>
-std::optional<float> Reader::MaybeRead(StringView name)
+Optional<float> Reader::MaybeRead(StringView name)
 {
   return MaybeReadFloat(name);
 }
 template<>
-std::optional<double> Reader::MaybeRead(StringView name)
+Optional<double> Reader::MaybeRead(StringView name)
 {
   return MaybeReadDouble(name);
 }
@@ -490,21 +490,21 @@ Reader::DataTag& Reader::ParseDataTagUnnamed(TAG type)
   {
     int16_t val;
     fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
-    data_tag.short_ = swap_u16(val);
+    data_tag.short_ = swap_i16(val);
   }
   break;
   case TAG::Int:
   {
     int32_t val;
     fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
-    data_tag.int_ = swap_u32(val);
+    data_tag.int_ = swap_i32(val);
   }
   break;
   case TAG::Long:
   {
     int64_t val;
     fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
-    data_tag.long_ = swap_u64(val);
+    data_tag.long_ = swap_i64(val);
   }
   break;
   case TAG::Float:
@@ -590,7 +590,7 @@ void Reader::AddIndexToCurrentName(int32_t index)
 
 void Reader::PopLatestName()
 {
-  size_t const last_dot = current_name_.rfind(".");
+  size_t const last_dot = current_name_.rfind('.');
   if (last_dot != std::string::npos)
   {
     current_name_.resize(last_dot);
@@ -603,16 +603,16 @@ void Reader::PopLatestName()
 
 int16_t Reader::ReadStrLen()
 {
-  uint16_t len;
+  int16_t len;
   fread_s(&len, sizeof(len), sizeof(len), 1, infile_);
-  return swap_u16(len);
+  return swap_i16(len);
 }
 
 int32_t Reader::ReadArrayLen()
 {
-  uint32_t len;
+  int32_t len;
   fread_s(&len, sizeof(len), sizeof(len), 1, infile_);
-  return swap_u32(len);
+  return swap_i32(len);
 }
 
 } // namespace Octane
