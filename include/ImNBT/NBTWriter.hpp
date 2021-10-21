@@ -16,7 +16,7 @@ public:
    * \brief opens and begins writing data to an NBT file
    * \param filepath path of NBT file to create/overwrite and write to
    */
-  Writer(StringView filepath);
+  explicit Writer(StringView filepath);
   ~Writer();
 
   /*!

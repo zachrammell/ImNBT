@@ -23,7 +23,7 @@ public:
    * \brief opens and begins reading data from an NBT file
    * \param filepath path to the NBT file to open and read from
    */
-  Reader(StringView filepath);
+  explicit Reader(StringView filepath);
   ~Reader();
 
   /*!
@@ -107,14 +107,14 @@ public:
   std::vector<int8_t> ReadByteArray(StringView name);
   StringView ReadString(StringView name);
 
-  std::optional<int8_t> MaybeReadByte(StringView name);
-  std::optional<int16_t> MaybeReadShort(StringView name);
-  std::optional<int32_t> MaybeReadInt(StringView name);
-  std::optional<int64_t> MaybeReadLong(StringView name);
-  std::optional<float> MaybeReadFloat(StringView name);
-  std::optional<double> MaybeReadDouble(StringView name);
-  std::optional<std::vector<int8_t>> MaybeReadByteArray(StringView name);
-  std::optional<StringView> MaybeReadString(StringView name);
+  Optional<int8_t> MaybeReadByte(StringView name);
+  Optional<int16_t> MaybeReadShort(StringView name);
+  Optional<int32_t> MaybeReadInt(StringView name);
+  Optional<int64_t> MaybeReadLong(StringView name);
+  Optional<float> MaybeReadFloat(StringView name);
+  Optional<double> MaybeReadDouble(StringView name);
+  Optional<std::vector<int8_t>> MaybeReadByteArray(StringView name);
+  Optional<StringView> MaybeReadString(StringView name);
 
   /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable deserialization
@@ -134,13 +134,13 @@ public:
    *  It's a generic reader function. for the basic NBT types, it acts exactly like calling the explicit function.
    *  For other types, the behavior is user-defined.
    *  This function is for reading data that is not guaranteed to exist.
-   *  If the data cannot be read, it will return a nullopt and you can use something like std::optional::value_or()
+   *  If the data cannot be read, it will return a nullopt and you can use something like value_or()
    * \tparam T type of data to read (explicitly specialize when calling)
    * \param name name of the data to try and find
    * \return the value of the read data
    */
   template<typename T>
-  std::optional<T> MaybeRead(StringView name);
+  Optional<T> MaybeRead(StringView name);
 
 private:
   enum class TAG : uint8_t
@@ -190,7 +190,7 @@ private:
 
   std::unordered_map<std::string, DataTag> named_tags_;
   std::string root_name;
-  std::string current_name_ = "";
+  std::string current_name_;
   std::vector<char> string_pool_;
   std::vector<uint8_t> byte_array_pool_;
   size_t parsing_nesting_depth_ = 0;

@@ -2,7 +2,6 @@
 
 #include "byteswapping.h"
 
-#include <cassert>
 #include <iostream>
 
 namespace ImNBT
@@ -198,39 +197,39 @@ namespace ImNBT
   // Write specializations
 
   template <>
-  void Writer::Write(int8_t b, StringView name)
+  void Writer::Write(int8_t value, StringView name)
   {
-    WriteByte(b, name);
+    WriteByte(value, name);
   }
   template <>
-  void Writer::Write(int16_t s, StringView name)
+  void Writer::Write(int16_t value, StringView name)
   {
-    WriteShort(s, name);
+    WriteShort(value, name);
   }
   template <>
-  void Writer::Write(int32_t i, StringView name)
+  void Writer::Write(int32_t value, StringView name)
   {
-    WriteInt(i, name);
+    WriteInt(value, name);
   }
   template <>
-  void Writer::Write(int64_t l, StringView name)
+  void Writer::Write(int64_t value, StringView name)
   {
-    WriteLong(l, name);
+    WriteLong(value, name);
   }
   template <>
-  void Writer::Write(float f, StringView name)
+  void Writer::Write(float value, StringView name)
   {
-    WriteFloat(f, name);
+    WriteFloat(value, name);
   }
   template <>
-  void Writer::Write(double d, StringView name)
+  void Writer::Write(double value, StringView name)
   {
-    WriteDouble(d, name);
+    WriteDouble(value, name);
   }
   template <>
-  void Writer::Write(StringView str, StringView name)
+  void Writer::Write(StringView value, StringView name)
   {
-    WriteString(str, name);
+    WriteString(value, name);
   }
 
   // private implementations
@@ -242,7 +241,7 @@ namespace ImNBT
 
   void Writer::WriteStr(StringView name)
   {
-    WriteStrLen(static_cast<uint16_t>(name.size()));
+    WriteStrLen(static_cast<int16_t>(name.size()));
     fwrite(name.data(), sizeof(StringView::value_type), name.size(), outfile_);
   }
 
