@@ -482,42 +482,42 @@ Reader::DataTag& Reader::ParseDataTagUnnamed(TAG type)
   case TAG::Byte:
   {
     int8_t val;
-    fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
+    fread(&val, sizeof(val), 1, infile_);
     data_tag.byte_ = val;
   }
   break;
   case TAG::Short:
   {
     int16_t val;
-    fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
+    fread(&val, sizeof(val), 1, infile_);
     data_tag.short_ = swap_i16(val);
   }
   break;
   case TAG::Int:
   {
     int32_t val;
-    fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
+    fread(&val, sizeof(val), 1, infile_);
     data_tag.int_ = swap_i32(val);
   }
   break;
   case TAG::Long:
   {
     int64_t val;
-    fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
+    fread(&val, sizeof(val), 1, infile_);
     data_tag.long_ = swap_i64(val);
   }
   break;
   case TAG::Float:
   {
     float val;
-    fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
+    fread(&val, sizeof(val), 1, infile_);
     data_tag.float_ = swap_f32(val);
   }
   break;
   case TAG::Double:
   {
     double val;
-    fread_s(&val, sizeof(val), sizeof(val), 1, infile_);
+    fread(&val, sizeof(val), 1, infile_);
     data_tag.double_ = swap_f64(val);
   }
   break;
@@ -526,7 +526,7 @@ Reader::DataTag& Reader::ParseDataTagUnnamed(TAG type)
     int16_t const length = ReadStrLen();
     size_t const insertion_point = string_pool_.size();
     string_pool_.resize(insertion_point + length + 1, '\0');
-    fread_s(string_pool_.data() + insertion_point, length, sizeof(char), length, infile_);
+    fread(string_pool_.data() + insertion_point, sizeof(char), length, infile_);
     data_tag.string_pool_index = insertion_point;
     data_tag.string_length_ = length;
   }
@@ -536,13 +536,12 @@ Reader::DataTag& Reader::ParseDataTagUnnamed(TAG type)
     int32_t const length = ReadArrayLen();
     size_t const insertion_point = byte_array_pool_.size();
     byte_array_pool_.resize(insertion_point + length + 1, 0);
-    fread_s(byte_array_pool_.data() + insertion_point, length, sizeof(char), length, infile_);
+    fread(byte_array_pool_.data() + insertion_point, sizeof(char), length, infile_);
     data_tag.byte_array_pool_index = insertion_point;
     data_tag.byte_array_length_ = length;
   }
   break;
   default:
-    __debugbreak(); // ask Zach to stop being lazy and implement deserialization for the right primitive type
     break;
   }
 
@@ -554,7 +553,7 @@ Reader::DataTag& Reader::ParseDataTagUnnamed(TAG type)
 Reader::TAG Reader::ReadTag()
 {
   TAG t;
-  fread_s(&t, sizeof(t), sizeof(t), 1, infile_);
+  fread(&t, sizeof(t), 1, infile_);
   return t;
 }
 
@@ -564,7 +563,7 @@ std::string Reader::ReadName()
   if (length != 0)
   {
     std::string name(static_cast<size_t>(length) + 1, '\0');
-    fread_s(name.data(), length, sizeof(std::string::value_type), length, infile_);
+    fread(name.data(), sizeof(std::string::value_type), length, infile_);
     return name;
   }
   return "";
@@ -604,15 +603,15 @@ void Reader::PopLatestName()
 int16_t Reader::ReadStrLen()
 {
   int16_t len;
-  fread_s(&len, sizeof(len), sizeof(len), 1, infile_);
+  fread(&len, sizeof(len), 1, infile_);
   return swap_i16(len);
 }
 
 int32_t Reader::ReadArrayLen()
 {
   int32_t len;
-  fread_s(&len, sizeof(len), sizeof(len), 1, infile_);
+  fread(&len, sizeof(len), 1, infile_);
   return swap_i32(len);
 }
 
-} // namespace Octane
+} // namespace ImNBT
