@@ -174,8 +174,8 @@ std::vector<int8_t> Reader::ReadByteArray(StringView name)
   PopLatestName();
   assert(found->second.type_ == TAG::Byte_Array);
   std::vector<int8_t> ret {
-    byte_array_pool_.begin() + found->second.byte_array_pool_index,
-    byte_array_pool_.begin() + found->second.byte_array_length_};
+    byte_array_pool_.data() + found->second.byte_array_pool_index,
+    byte_array_pool_.data() + found->second.byte_array_length_};
   return ret;
 }
 
@@ -277,8 +277,8 @@ Optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
   {
     assert(found->second.type_ == TAG::Byte_Array);
     std::vector<int8_t> ret {
-      byte_array_pool_.begin() + found->second.byte_array_pool_index,
-      byte_array_pool_.begin() + found->second.byte_array_length_};
+      byte_array_pool_.data() + found->second.byte_array_pool_index,
+      byte_array_pool_.data() + found->second.byte_array_length_};
     return std::make_optional(ret);
   }
   return std::nullopt;
