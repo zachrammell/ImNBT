@@ -1,4 +1,4 @@
-#include "NBTWriter.hpp"
+#include <ImNBT/NBTWriter.hpp>
 
 #include "byteswapping.h"
 
@@ -8,7 +8,7 @@
 namespace ImNBT
 {
 
-  Writer::Writer(string_view filepath) : outfile_{nullptr}
+  Writer::Writer(StringView filepath) : outfile_{nullptr}
   {
     outfile_ = fopen(filepath.data(), "wb");
     if (!outfile_)
@@ -30,7 +30,7 @@ namespace ImNBT
     fclose(outfile_);
   }
 
-  bool Writer::BeginCompound(string_view name)
+  bool Writer::BeginCompound(StringView name)
   {
     HandleNesting(name, TAG::Compound);
     nesting_info_.emplace(NestingInfo{TAG::End, NestingInfo::ContainerType::Compound, 0, 0});
@@ -57,7 +57,7 @@ namespace ImNBT
     WriteTag(TAG::End);
   }
 
-  bool Writer::BeginList(string_view name)
+  bool Writer::BeginList(StringView name)
   {
     HandleNesting(name, TAG::List);
     //  NestingInfo& nesting = nesting_info_.top();
@@ -100,7 +100,7 @@ namespace ImNBT
     nesting_info_.pop();
   }
 
-  void Writer::WriteByte(int8_t b, string_view name)
+  void Writer::WriteByte(int8_t b, StringView name)
   {
     HandleNesting(name, TAG::Byte);
     if (!name.empty())
@@ -111,7 +111,7 @@ namespace ImNBT
     fwrite(&b, sizeof(b), 1, outfile_);
   }
 
-  void Writer::WriteShort(int16_t s, string_view name)
+  void Writer::WriteShort(int16_t s, StringView name)
   {
     HandleNesting(name, TAG::Short);
     if (!name.empty())
@@ -123,7 +123,7 @@ namespace ImNBT
     fwrite(&s_big_endian, sizeof(s_big_endian), 1, outfile_);
   }
 
-  void Writer::WriteInt(int32_t i, string_view name)
+  void Writer::WriteInt(int32_t i, StringView name)
   {
     HandleNesting(name, TAG::Int);
     if (!name.empty())
@@ -135,7 +135,7 @@ namespace ImNBT
     fwrite(&i_big_endian, sizeof(i_big_endian), 1, outfile_);
   }
 
-  void Writer::WriteLong(int64_t l, string_view name)
+  void Writer::WriteLong(int64_t l, StringView name)
   {
     HandleNesting(name, TAG::Long);
     if (!name.empty())
@@ -147,7 +147,7 @@ namespace ImNBT
     fwrite(&l_big_endian, sizeof(l_big_endian), 1, outfile_);
   }
 
-  void Writer::WriteFloat(float f, string_view name)
+  void Writer::WriteFloat(float f, StringView name)
   {
     HandleNesting(name, TAG::Float);
     if (!name.empty())
@@ -159,7 +159,7 @@ namespace ImNBT
     fwrite(&f_big_endian, sizeof(f_big_endian), 1, outfile_);
   }
 
-  void Writer::WriteDouble(double d, string_view name)
+  void Writer::WriteDouble(double d, StringView name)
   {
     HandleNesting(name, TAG::Double);
     if (!name.empty())
@@ -171,7 +171,7 @@ namespace ImNBT
     fwrite(&d_big_endian, sizeof(d_big_endian), 1, outfile_);
   }
 
-  void Writer::WriteByteArray(int8_t const *array, int32_t length, string_view name)
+  void Writer::WriteByteArray(int8_t const *array, int32_t length, StringView name)
   {
     HandleNesting(name, TAG::Byte_Array);
     if (!name.empty())
@@ -183,7 +183,7 @@ namespace ImNBT
     fwrite(&array, sizeof(array[0]), length, outfile_);
   }
 
-  void Writer::WriteString(string_view str, string_view name)
+  void Writer::WriteString(StringView str, StringView name)
   {
     HandleNesting(name, TAG::String);
     // Tag and name information is only written for named tags
@@ -198,37 +198,37 @@ namespace ImNBT
   // Write specializations
 
   template <>
-  void Writer::Write(int8_t b, string_view name)
+  void Writer::Write(int8_t b, StringView name)
   {
     WriteByte(b, name);
   }
   template <>
-  void Writer::Write(int16_t s, string_view name)
+  void Writer::Write(int16_t s, StringView name)
   {
     WriteShort(s, name);
   }
   template <>
-  void Writer::Write(int32_t i, string_view name)
+  void Writer::Write(int32_t i, StringView name)
   {
     WriteInt(i, name);
   }
   template <>
-  void Writer::Write(int64_t l, string_view name)
+  void Writer::Write(int64_t l, StringView name)
   {
     WriteLong(l, name);
   }
   template <>
-  void Writer::Write(float f, string_view name)
+  void Writer::Write(float f, StringView name)
   {
     WriteFloat(f, name);
   }
   template <>
-  void Writer::Write(double d, string_view name)
+  void Writer::Write(double d, StringView name)
   {
     WriteDouble(d, name);
   }
   template <>
-  void Writer::Write(string_view str, string_view name)
+  void Writer::Write(StringView str, StringView name)
   {
     WriteString(str, name);
   }
@@ -240,10 +240,10 @@ namespace ImNBT
     fwrite(&t, sizeof(t), 1, outfile_);
   }
 
-  void Writer::WriteStr(string_view name)
+  void Writer::WriteStr(StringView name)
   {
     WriteStrLen(static_cast<uint16_t>(name.size()));
-    fwrite(name.data(), sizeof(string_view::value_type), name.size(), outfile_);
+    fwrite(name.data(), sizeof(StringView::value_type), name.size(), outfile_);
   }
 
   void Writer::WriteStrLen(int16_t len)
@@ -265,7 +265,7 @@ namespace ImNBT
     WriteStr("root");
   }
 
-  void Writer::HandleNesting(string_view name, TAG t)
+  void Writer::HandleNesting(StringView name, TAG t)
   {
     NestingInfo &nesting = nesting_info_.top();
     // Lists have strict requirements

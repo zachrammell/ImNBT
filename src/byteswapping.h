@@ -3,26 +3,28 @@
 
 #ifdef __cplusplus
 #include <cstdint>
-#define BYTESWAP_DECORATION constexpr
+#define BYTESWAP_DECORATION static inline
+#define BYTESWAP_CONSTEXPR constexpr
 #else
 #include <stdint.h>
 #define BYTESWAP_DECORATION static inline
+#define BYTESWAP_CONSTEXPR
 #endif
 
-BYTESWAP_DECORATION
+BYTESWAP_DECORATION BYTESWAP_CONSTEXPR
 uint16_t swap_u16(uint16_t x)
 {
   return (x >> 8) | (x << 8);
 }
 
-BYTESWAP_DECORATION
+BYTESWAP_DECORATION BYTESWAP_CONSTEXPR
 uint32_t swap_u32(uint32_t x)
 {
   x = ((x << 8) & 0xFF00FF00) | ((x >> 8) & 0x00FF00FF);
   return (x << 16) | (x >> 16);
 }
 
-BYTESWAP_DECORATION
+BYTESWAP_DECORATION BYTESWAP_CONSTEXPR
 uint64_t swap_u64(uint64_t x)
 {
   x = ((x << 8) & 0xFF00FF00FF00FF00ULL) | ((x >> 8) & 0x00FF00FF00FF00FFULL);
@@ -40,7 +42,7 @@ float swap_f32(float x)
 BYTESWAP_DECORATION
 double swap_f64(double x)
 {
-  uint32_t const tmp = swap_u32(*reinterpret_cast<uint32_t*>(&x));
+  uint64_t const tmp = swap_u64(*reinterpret_cast<uint64_t*>(&x));
   return *reinterpret_cast<float const*>(&tmp);
 }
 

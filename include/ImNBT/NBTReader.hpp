@@ -12,7 +12,9 @@
 namespace ImNBT
 {
 
-using std::string_view;
+template<typename T>
+using Optional = std::optional<T>;
+using StringView = std::string_view;
 
 class Reader
 {
@@ -21,7 +23,7 @@ public:
    * \brief opens and begins reading data from an NBT file
    * \param filepath path to the NBT file to open and read from
    */
-  Reader(string_view filepath);
+  Reader(StringView filepath);
   ~Reader();
 
   /*!
@@ -35,7 +37,7 @@ public:
    *  {
    *    int lives = ReadInt("lives");
    *    float rotation = ReadFloat("rotation");
-   *    string_view name = ReadString("name");
+   *    StringView name = ReadString("name");
    *    CloseCompound();
    *  }
    *
@@ -44,7 +46,7 @@ public:
    * \param name name of compound to try and open
    * \return true if compound exists and can be read from, false otherwise
    */
-  bool OpenCompound(string_view name);
+  bool OpenCompound(StringView name);
   /*!
    * \brief Closes the last compound that was opened for reading. Should only be called if OpenCompound() returned true.
    * After calling, reads will no longer be taken from the compound.
@@ -72,7 +74,7 @@ public:
    * \param name name of list to try and open
    * \return true if list exists and can be read from, false otherwise
    */
-  bool OpenList(string_view name);
+  bool OpenList(StringView name);
   /*!
    * \brief the number of elements in the currently open list.
    * Usage:
@@ -96,23 +98,23 @@ public:
    */
   void CloseList();
 
-  int8_t ReadByte(string_view name);
-  int16_t ReadShort(string_view name);
-  int32_t ReadInt(string_view name);
-  int64_t ReadLong(string_view name);
-  float ReadFloat(string_view name);
-  double ReadDouble(string_view name);
-  std::vector<int8_t> ReadByteArray(string_view name);
-  string_view ReadString(string_view name);
+  int8_t ReadByte(StringView name);
+  int16_t ReadShort(StringView name);
+  int32_t ReadInt(StringView name);
+  int64_t ReadLong(StringView name);
+  float ReadFloat(StringView name);
+  double ReadDouble(StringView name);
+  std::vector<int8_t> ReadByteArray(StringView name);
+  StringView ReadString(StringView name);
 
-  std::optional<int8_t> MaybeReadByte(string_view name);
-  std::optional<int16_t> MaybeReadShort(string_view name);
-  std::optional<int32_t> MaybeReadInt(string_view name);
-  std::optional<int64_t> MaybeReadLong(string_view name);
-  std::optional<float> MaybeReadFloat(string_view name);
-  std::optional<double> MaybeReadDouble(string_view name);
-  std::optional<std::vector<int8_t>> MaybeReadByteArray(string_view name);
-  std::optional<string_view> MaybeReadString(string_view name);
+  std::optional<int8_t> MaybeReadByte(StringView name);
+  std::optional<int16_t> MaybeReadShort(StringView name);
+  std::optional<int32_t> MaybeReadInt(StringView name);
+  std::optional<int64_t> MaybeReadLong(StringView name);
+  std::optional<float> MaybeReadFloat(StringView name);
+  std::optional<double> MaybeReadDouble(StringView name);
+  std::optional<std::vector<int8_t>> MaybeReadByteArray(StringView name);
+  std::optional<StringView> MaybeReadString(StringView name);
 
   /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable deserialization
@@ -125,20 +127,20 @@ public:
    * \return the value of the read data
    */
   template<typename T>
-  T Read(string_view name);
+  T Read(StringView name);
 
   /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable deserialization
    *  It's a generic reader function. for the basic NBT types, it acts exactly like calling the explicit function.
    *  For other types, the behavior is user-defined.
    *  This function is for reading data that is not guaranteed to exist.
-   *  If the data cannot be read, it will return a nullopt and you can use something like eastl::optional::value_or()
+   *  If the data cannot be read, it will return a nullopt and you can use something like std::optional::value_or()
    * \tparam T type of data to read (explicitly specialize when calling)
    * \param name name of the data to try and find
    * \return the value of the read data
    */
   template<typename T>
-  std::optional<T> MaybeRead(string_view name);
+  std::optional<T> MaybeRead(StringView name);
 
 private:
   enum class TAG : uint8_t
@@ -211,7 +213,7 @@ private:
 
   /* READING HELPER FUNCTIONS */
 
-  bool HandleNesting(string_view name, TAG t);
+  bool HandleNesting(StringView name, TAG t);
   void EnterRoot();
 
   /* PARSING FUNCTIONS */
@@ -223,7 +225,7 @@ private:
   TAG ReadTag();
   std::string ReadName();
 
-  void AddToCurrentName(string_view name);
+  void AddToCurrentName(StringView name);
   void AddIndexToCurrentName(int32_t index);
   void PopLatestName();
 

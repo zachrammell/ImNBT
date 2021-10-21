@@ -7,7 +7,7 @@
 namespace ImNBT
 {
 
-using std::string_view;
+using StringView = std::string_view;
 
 class Writer
 {
@@ -16,7 +16,7 @@ public:
    * \brief opens and begins writing data to an NBT file
    * \param filepath path of NBT file to create/overwrite and write to
    */
-  Writer(string_view filepath);
+  Writer(StringView filepath);
   ~Writer();
 
   /*!
@@ -45,7 +45,7 @@ public:
    * \param name the name to give this compound tag
    * \return true if compound is successfully opened, false otherwise
    */
-  bool BeginCompound(string_view name = "");
+  bool BeginCompound(StringView name = "");
   /*!
    * \brief Ends writing to a previously started compound. Should only be called if BeginCompound() returned true.
    * After calling, writes will no longer be added to the compound.
@@ -73,21 +73,21 @@ public:
    * \param name the name to give this list object
    * \return true if list is opened for writing, false otherwise
    */
-  bool BeginList(string_view name = "");
+  bool BeginList(StringView name = "");
   /*!
    * \brief Ends writing to a previously started list. Should only be called if BeginList() returned true.
    * After calling, writes will no longer be added to the list.
    */
   void EndList();
 
-  void WriteByte(int8_t b, string_view name = "");
-  void WriteShort(int16_t s, string_view name = "");
-  void WriteInt(int32_t i, string_view name = "");
-  void WriteLong(int64_t l, string_view name = "");
-  void WriteFloat(float f, string_view name = "");
-  void WriteDouble(double d, string_view name = "");
-  void WriteByteArray(int8_t const* array, int32_t length, string_view name = "");
-  void WriteString(string_view str, string_view name = "");
+  void WriteByte(int8_t b, StringView name = "");
+  void WriteShort(int16_t s, StringView name = "");
+  void WriteInt(int32_t i, StringView name = "");
+  void WriteLong(int64_t l, StringView name = "");
+  void WriteFloat(float f, StringView name = "");
+  void WriteDouble(double d, StringView name = "");
+  void WriteByteArray(int8_t const* array, int32_t length, StringView name = "");
+  void WriteString(StringView str, StringView name = "");
 
   /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable serialization.
@@ -98,7 +98,7 @@ public:
    * \param name name of value to write
    */
   template<typename T>
-  void Write(T value, string_view name = "");
+  void Write(T value, StringView name = "");
 
 private:
   enum class TAG : uint8_t
@@ -119,13 +119,13 @@ private:
   void WriteTag(TAG t);
   /* The following functions are for raw writing without considering names, types, or nesting */
 
-  void WriteStr(string_view name);
+  void WriteStr(StringView name);
   void WriteStrLen(int16_t len);
   void WriteArrayLen(int32_t len);
 
   void BeginRoot();
 
-  void HandleNesting(string_view name, TAG t);
+  void HandleNesting(StringView name, TAG t);
 
   FILE* outfile_;
 
