@@ -46,7 +46,7 @@ public:
    * \param name name of compound to try and open
    * \return true if compound exists and can be read from, false otherwise
    */
-  bool OpenCompound(StringView name);
+  bool OpenCompound(StringView name = "");
   /*!
    * \brief Closes the last compound that was opened for reading. Should only be called if OpenCompound() returned true.
    * After calling, reads will no longer be taken from the compound.
@@ -66,7 +66,7 @@ public:
    *    vector<int> arr {ListSize()};
    *    for (int i = 0; i < ListSize(); ++i)
    *    {
-   *      arr[i] = ReadInt("");
+   *      arr[i] = ReadInt();
    *    }
    *    CloseList();
    *  }
@@ -74,7 +74,7 @@ public:
    * \param name name of list to try and open
    * \return true if list exists and can be read from, false otherwise
    */
-  bool OpenList(StringView name);
+  bool OpenList(StringView name = "");
   /*!
    * \brief the number of elements in the currently open list.
    * Usage:
@@ -84,7 +84,7 @@ public:
    *    vector<int> arr {ListSize()};
    *    for (int i = 0; i < ListSize(); ++i)
    *    {
-   *      arr[i] = ReadInt("");
+   *      arr[i] = ReadInt();
    *    }
    *    CloseList();
    *  }
@@ -98,26 +98,26 @@ public:
    */
   void CloseList();
 
-  int8_t ReadByte(StringView name);
-  int16_t ReadShort(StringView name);
-  int32_t ReadInt(StringView name);
-  int64_t ReadLong(StringView name);
-  float ReadFloat(StringView name);
-  double ReadDouble(StringView name);
-  std::vector<int8_t> ReadByteArray(StringView name);
-  StringView ReadString(StringView name);
+  int8_t ReadByte(StringView name = "");
+  int16_t ReadShort(StringView name = "");
+  int32_t ReadInt(StringView name = "");
+  int64_t ReadLong(StringView name = "");
+  float ReadFloat(StringView name = "");
+  double ReadDouble(StringView name = "");
+  std::vector<int8_t> ReadByteArray(StringView name = "");
+  StringView ReadString(StringView name = "");
 
-  Optional<int8_t> MaybeReadByte(StringView name);
-  Optional<int16_t> MaybeReadShort(StringView name);
-  Optional<int32_t> MaybeReadInt(StringView name);
-  Optional<int64_t> MaybeReadLong(StringView name);
-  Optional<float> MaybeReadFloat(StringView name);
-  Optional<double> MaybeReadDouble(StringView name);
-  Optional<std::vector<int8_t>> MaybeReadByteArray(StringView name);
-  Optional<StringView> MaybeReadString(StringView name);
+  Optional<int8_t> MaybeReadByte(StringView name = "");
+  Optional<int16_t> MaybeReadShort(StringView name = "");
+  Optional<int32_t> MaybeReadInt(StringView name = "");
+  Optional<int64_t> MaybeReadLong(StringView name = "");
+  Optional<float> MaybeReadFloat(StringView name = "");
+  Optional<double> MaybeReadDouble(StringView name = "");
+  Optional<std::vector<int8_t>> MaybeReadByteArray(StringView name = "");
+  Optional<StringView> MaybeReadString(StringView name = "");
 
   /*!
-   * \brief This function is not implemented, only specialized! Specialize it on your own type to enable deserialization
+   * \brief Specialize MaybeRead on your own type to enable deserialization
    *  It's a generic reader function. for the basic NBT types, it acts exactly like calling the explicit function.
    *  For other types, the behavior is user-defined.
    *  This function is for reading data that is guaranteed to exist.
@@ -127,7 +127,7 @@ public:
    * \return the value of the read data
    */
   template<typename T>
-  T Read(StringView name);
+  T Read(StringView name = "");
 
   /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable deserialization
@@ -140,7 +140,7 @@ public:
    * \return the value of the read data
    */
   template<typename T>
-  Optional<T> MaybeRead(StringView name);
+  Optional<T> MaybeRead(StringView name = "");
 
 private:
   enum class TAG : uint8_t
