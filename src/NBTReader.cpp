@@ -11,18 +11,13 @@ namespace ImNBT
 Reader::Reader(StringView filepath) : infile_ {nullptr}
 {
   infile_ = fopen(filepath.data(), "rb");
-  if (!infile_)
-  {
-    // TODO: actual error handling
-    std::cerr << "Couldn't open NBT file " << filepath << std::endl;
-    return;
-  }
+  assert(infile_);
 
-  std::clog << "Loading NBT file " << filepath << std::endl;
+  // std::clog << "Loading NBT file " << filepath << "\n";
 
   ParseDataTree();
 
-  std::clog << "Parsed NBT file " << filepath << std::endl;
+  // std::clog << "Parsed NBT file " << filepath << "\n";
 
   EnterRoot();
 }
@@ -70,7 +65,7 @@ void Reader::CloseCompound()
     PopLatestName();
     return;
   }
-  std::cerr << "Reader : Compound Close Mismatch - Attempted to close a compound when a list was not open.\n";
+  assert(!"Reader : Compound Close Mismatch - Attempted to close a compound when a compound was not open.\n");
 }
 
 bool Reader::OpenList(StringView name)
@@ -97,7 +92,7 @@ int32_t Reader::ListSize()
   {
     return nesting.length;
   }
-  std::cerr << "Reader : Invalid List Size Read - Attempted to read list size when a list was not open.\n";
+  assert(!"Reader : Invalid List Size Read - Attempted to read list size when a list was not open.\n");
   return -1;
 }
 
@@ -110,7 +105,7 @@ void Reader::CloseList()
     PopLatestName();
     return;
   }
-  std::cerr << "Reader : List Close Mismatch - Attempted to close a list when a list was not open.\n";
+  assert(!"Reader : List Close Mismatch - Attempted to close a list when a list was not open.\n");
 }
 
 int8_t Reader::ReadByte(StringView name)
@@ -380,7 +375,7 @@ bool Reader::HandleNesting(StringView name, TAG t)
     if (!name.empty())
     {
       // problems, lists cannot have named tags
-      assert(0);
+      assert(!"Reader : List Named Read - Attempted to read named tag from list, not allowed.");
     }
     if (nesting.data_type != t)
     {
@@ -407,7 +402,7 @@ bool Reader::HandleNesting(StringView name, TAG t)
     if (name.empty())
     {
       // bad, compound tags must have names
-      assert(0);
+      assert(!"Reader : Compound Unnamed Read - Attempted to read unnamed tag from compound, not allowed.");
     }
     AddToCurrentName(name);
   }
