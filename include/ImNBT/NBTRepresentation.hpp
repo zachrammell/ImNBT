@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 namespace ImNBT
 {
@@ -23,35 +24,50 @@ enum class TAG : uint8_t
     INVALID = 0xCC
 };
 
-union TagPayload
+struct TagPayload
 {
-    int8_t byte_;
-    int16_t short_;
-    int32_t int_;
-    int64_t long_;
-    float float_;
-    double double_;
-    struct
+    union
     {
-        int32_t byte_array_length_;
-        size_t byte_array_pool_index;
-    };
-    struct
-    {
-        int16_t string_length_;
-        size_t string_pool_index;
-    };
-    struct
-    {
-        TAG list_type_;
-        int32_t list_length_;
+        int8_t byte_;
+        int16_t short_;
+        int32_t int_;
+        int64_t long_;
+        float float_;
+        double double_;
+        struct TagPayloadByteArray
+        {
+            int32_t length_;
+            size_t pool_index_;
+        } byte_array_;
+        struct TagPayloadString
+        {
+            int16_t length_;
+            size_t pool_index_;
+        } string_;
+        struct TagPayloadList
+        {
+            TAG type_;
+            int32_t length_;
+            size_t pool_index_;
+        } list_;
+        struct TagPayloadCompound
+        {
+            
+        } compound_;
     };
 };
 
-struct DataTag
+struct DataTag : TagPayload
 {
-    TAG type_;
-    TagPayload data_;
+    DataTag(TAG type) : type(type) {}
+    DataTag() = default;
+
+    TAG type;
+};
+
+struct NamedDataTag : DataTag
+{
+    std::string_view name;
 };
 
 } // namespace ImNBT

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "NBTRepresentation.hpp"
+
 #include <cstdio>
 #include <string_view>
 #include <stack>
@@ -101,21 +103,6 @@ public:
   void Write(T value, StringView name = "");
 
 private:
-  enum class TAG : uint8_t
-  {
-    End = 0,
-    Byte = 1,
-    Short = 2,
-    Int = 3,
-    Long = 4,
-    Float = 5,
-    Double = 6,
-    Byte_Array = 7,
-    String = 8,
-    List = 9,
-    Compound = 10,
-    INVALID = 0xCC
-  };
   void WriteTag(TAG t);
   /* The following functions are for raw writing without considering names, types, or nesting */
 
