@@ -17,11 +17,14 @@ set(IMNBT_SOURCES
  )
 
  set(IMNBT_NATVIS
-  "natvis/imnbt.natvis"
+  "natvis/$<IF:$<CONFIG:DEBUG>,debug,release>/imnbt.natvis"  
  )
 
 add_library(ImNBT ${IMNBT_SOURCES} ${IMNBT_NATVIS})
 target_include_directories(ImNBT PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+# define the macro DEBUG if compiling in that configuration
+target_compile_definitions(ImNBT PRIVATE "$<$<CONFIG:DEBUG>:DEBUG>")
 
 # Build tests by default, make it a configurable option
 option(IMNBT_BUILD_TESTS "Build ImNBT tests" ON)

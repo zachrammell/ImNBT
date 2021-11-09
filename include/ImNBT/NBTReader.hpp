@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ImNBT/NBTRepresentation.hpp>
+#include "NBTRepresentation.hpp"
 
 #include <cstdio>
 #include <optional>

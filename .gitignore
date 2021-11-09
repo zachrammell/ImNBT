@@ -1,4 +1,12 @@
+# VS Code
 .vscode/
-build/
 
+# Visual Studio
 .vs/
+CMakeSettings.json
+
+# Jetbrains IDEs
+.idea/
+
+# Output
+build/

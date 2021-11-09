@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="ImNBT::DataTag">
+    <DisplayString Condition="type == TAG::End">[End]</DisplayString>
+    <DisplayString Condition="type == TAG::Byte">[Byte] {byte_}</DisplayString>
+    <DisplayString Condition="type == TAG::Short">[Short] {short_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int">[Int] {int_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long">[Long] {long_}</DisplayString>
+    <DisplayString Condition="type == TAG::Float">[Float] {float_}</DisplayString>
+    <DisplayString Condition="type == TAG::Double">[Double] {double_}</DisplayString>
+    <DisplayString Condition="type == TAG::Byte_Array">[Byte_Array] length={byte_array_.length_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int_Array">[Int_Array] length={int_array_.length_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long_Array">[Long_Array] length={int_array_.length_}</DisplayString>
+    <DisplayString Condition="type == TAG::String">[String]</DisplayString>
+    <DisplayString Condition="type == TAG::List">[List&lt;{list_.type_}&gt;] length={list_.length_}</DisplayString>
+    <DisplayString Condition="type == TAG::Compound">[Compound]</DisplayString>
+
+    <Expand>
+      <Item Name="Type">type_</Item>
+      <Item Condition="type == TAG::Byte"   Name="Value">byte_</Item>
+      <Item Condition="type == TAG::Short"  Name="Value">short_</Item>
+      <Item Condition="type == TAG::Int"    Name="Value">int_</Item>
+      <Item Condition="type == TAG::Long"   Name="Value">long_</Item>
+      <Item Condition="type == TAG::Float"  Name="Value">float_</Item>
+      <Item Condition="type == TAG::Double" Name="Value">double_</Item>
+    </Expand>
+
+  </Type>
+
+</AutoVisualizer>
