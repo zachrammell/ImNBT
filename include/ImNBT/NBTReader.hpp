@@ -15,7 +15,6 @@ namespace ImNBT
 
 template<typename T>
 using Optional = std::optional<T>;
-using StringView = std::string_view;
 
 class Reader
 {

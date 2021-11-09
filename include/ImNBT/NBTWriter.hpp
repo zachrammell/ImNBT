@@ -9,8 +9,6 @@
 namespace ImNBT
 {
 
-using StringView = std::string_view;
-
 class Writer
 {
 public:
@@ -129,6 +127,42 @@ private:
   };
 
   std::stack<NestingInfo> nesting_info_;
+};
+
+class Builder
+{
+public:
+    explicit Builder();
+    ~Builder();
+
+    bool BeginCompound(StringView name = "");
+    void EndCompound();
+
+    bool BeginList(StringView name = "");
+    void EndList();
+
+    void WriteByte(int8_t b, StringView name = "");
+    void WriteShort(int16_t s, StringView name = "");
+    void WriteInt(int32_t i, StringView name = "");
+    void WriteLong(int64_t l, StringView name = "");
+    void WriteFloat(float f, StringView name = "");
+    void WriteDouble(double d, StringView name = "");
+    void WriteByteArray(int8_t const* array, int32_t count, StringView name = "");
+    void WriteIntArray(int32_t const* array, int32_t count, StringView name = "");
+    void WriteLongArray(int64_t const* array, int32_t count, StringView name = "");
+    void WriteString(StringView str, StringView name = "");
+
+private:
+    DataStore dataStore;
+
+    struct NestingInfo
+    {
+        NamedDataTagIndex containerIdx;
+        int64_t poolIndex;
+        int32_t count;
+    };
+
+    std::stack<NestingInfo> nestingStack;
 };
 
 }

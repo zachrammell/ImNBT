@@ -74,7 +74,7 @@ bool Reader::OpenList(StringView name)
   if (found != named_tags_.end())
   {
     nesting_info_.emplace(
-          NestingInfo{ found->second.list_.type_, NestingInfo::ContainerType::List, found->second.list_.length_, 0 });
+          NestingInfo{ found->second.list_.elementType_, NestingInfo::ContainerType::List, found->second.list_.count_, 0 });
     return true;
   }
   PopLatestName();
@@ -88,7 +88,7 @@ int32_t Reader::ListSize()
   {
     return nesting.length;
   }
-  assert(!"Reader : Invalid List Size Read - Attempted to read list size when a list was not open.\n");
+  assert(!"Reader : Invalid List Size Read - Attempted to read a list's size when a list was not open.\n");
   return -1;
 }
 
@@ -165,8 +165,8 @@ std::vector<int8_t> Reader::ReadByteArray(StringView name)
   PopLatestName();
   assert(found->second.type == TAG::Byte_Array);
   std::vector<int8_t> ret {
-      byte_array_pool_.data() + found->second.byte_array_.pool_index_,
-      byte_array_pool_.data() + found->second.byte_array_.length_
+      byte_array_pool_.data() + found->second.byteArray_.poolIndex_,
+      byte_array_pool_.data() + found->second.byteArray_.count_
   };
   return ret;
 }
@@ -178,7 +178,7 @@ StringView Reader::ReadString(StringView name)
   PopLatestName();
   assert(found->second.type == TAG::String);
   return StringView {
-      string_pool_.data() + found->second.string_.pool_index_,
+      string_pool_.data() + found->second.string_.poolIndex_,
       static_cast<size_t>(found->second.string_.length_)
   };
 }
@@ -270,8 +270,9 @@ Optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
   {
     assert(found->second.type == TAG::Byte_Array);
     std::vector<int8_t> ret {
-      byte_array_pool_.data() + found->second.byte_array_.pool_index_,
-      byte_array_pool_.data() + found->second.byte_array_.length_};
+      byte_array_pool_.data() + found->second.byteArray_.poolIndex_,
+      byte_array_pool_.data() + found->second.byteArray_.count_
+    };
     return std::make_optional(ret);
   }
   return std::nullopt;
@@ -286,7 +287,7 @@ Optional<StringView> Reader::MaybeReadString(StringView name)
   {
     assert(found->second.type == TAG::String);
     return std::make_optional<StringView>(
-        string_pool_.data() + found->second.string_.pool_index_,
+        string_pool_.data() + found->second.string_.poolIndex_,
         static_cast<size_t>(found->second.string_.length_));
   }
   return std::nullopt;
@@ -373,22 +374,22 @@ bool Reader::HandleNesting(StringView name, TAG t)
     if (!name.empty())
     {
       // problems, lists cannot have named tags
-      assert(!"Reader : List Named Read - Attempted to read named tag from list, not allowed.");
+      assert(!"Reader : List Named Read - Attempted to read named tag from a list.");
+      return false;
     }
     if (nesting.data_type != t)
     {
-      if (nesting.length == 0)
+      if (nesting.length != 0)
       {
-      }
-      else
-      {
+          assert(!"Reader : List Type Mismatch - Attempted to read the wrong type from a list.");
+          return false;
       }
     }
     else
     {
       if (nesting.list_index >= nesting.length)
       {
-        // read too many from list
+        assert(!"Reader : List Overread - Attempted to read too many items from a list.");
         return false;
       }
       AddIndexToCurrentName(nesting.list_index);
@@ -400,7 +401,8 @@ bool Reader::HandleNesting(StringView name, TAG t)
     if (name.empty())
     {
       // bad, compound tags must have names
-      assert(!"Reader : Compound Unnamed Read - Attempted to read unnamed tag from compound, not allowed.");
+      assert(!"Reader : Compound Unnamed Read - Attempted to read unnamed tag from a compound.");
+      return false;
     }
     AddToCurrentName(name);
   }
@@ -447,13 +449,13 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
   case TAG::List:
   {
     ++parsing_nesting_depth_;
-    data_tag.list_.type_ = ReadTag();
-    data_tag.list_.length_ = ReadArrayLen();
+    data_tag.list_.elementType_ = ReadTag();
+    data_tag.list_.count_ = ReadArrayLen();
     // read len unnamed elements
-    for (int i = 0; i < data_tag.list_.length_; ++i)
+    for (int i = 0; i < data_tag.list_.count_; ++i)
     {
       AddIndexToCurrentName(i);
-        named_tags_.emplace(current_name_, ParseDataTagUnnamed(data_tag.list_.type_));
+        named_tags_.emplace(current_name_, ParseDataTagUnnamed(data_tag.list_.elementType_));
       PopLatestName();
     }
     --parsing_nesting_depth_;
@@ -520,7 +522,7 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
     size_t const insertion_point = string_pool_.size();
     string_pool_.resize(insertion_point + length + 1, '\0');
     fread(string_pool_.data() + insertion_point, sizeof(char), length, infile_);
-    data_tag.string_.pool_index_ = insertion_point;
+    data_tag.string_.poolIndex_ = insertion_point;
     data_tag.string_.length_ = length;
   }
   break;
@@ -530,8 +532,8 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
     size_t const insertion_point = byte_array_pool_.size();
     byte_array_pool_.resize(insertion_point + length + 1, 0);
     fread(byte_array_pool_.data() + insertion_point, sizeof(char), length, infile_);
-    data_tag.byte_array_.pool_index_ = insertion_point;
-    data_tag.byte_array_.length_ = length;
+    data_tag.byteArray_.poolIndex_ = insertion_point;
+    data_tag.byteArray_.count_ = length;
   }
   break;
   default:

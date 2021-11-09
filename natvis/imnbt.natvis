@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="ImNBT::NamedDataTag">
+    <DisplayString>{name}: {*((ImNBT::DataTag*)this)}</DisplayString>
+    <Expand>
+      <!--<Item Name="Name">name</Item>-->
+      <ExpandedItem>*((ImNBT::DataTag*)this)</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="ImNBT::DataTag">
+    <DisplayString Condition="type == TAG::End">[End]</DisplayString>
+    <DisplayString Condition="type == TAG::Byte">[Byte] {byte_}</DisplayString>
+    <DisplayString Condition="type == TAG::Short">[Short] {short_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int">[Int] {int_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long">[Long] {long_}</DisplayString>
+    <DisplayString Condition="type == TAG::Float">[Float] {float_}</DisplayString>
+    <DisplayString Condition="type == TAG::Double">[Double] {double_}</DisplayString>
+    <DisplayString Condition="type == TAG::Byte_Array">[Byte_Array] count={byteArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int_Array">[Int_Array] count={intArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long_Array">[Long_Array] count={intArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::String">[String]</DisplayString>
+    <DisplayString Condition="type == TAG::List &amp;&amp; list_.count_">[List&lt;{list_.elementType_}&gt;] count={list_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::List &amp;&amp; !list_.count_">[List] (empty)</DisplayString>
+    <DisplayString Condition="type == TAG::Compound">[Compound]</DisplayString>
+
+    <Expand>
+      <Item Condition="type == TAG::Byte"   Name="Value">byte_</Item>
+      <Item Condition="type == TAG::Short"  Name="Value">short_</Item>
+      <Item Condition="type == TAG::Int"    Name="Value">int_</Item>
+      <Item Condition="type == TAG::Long"   Name="Value">long_</Item>
+      <Item Condition="type == TAG::Float"  Name="Value">float_</Item>
+      <Item Condition="type == TAG::Double" Name="Value">double_</Item>
+      <Item Condition="type == TAG::List &amp;&amp; list_.count_" Name="Element Type">list_.elementType_</Item>
+      <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Byte">
+        <Size>list_.count_</Size>
+        <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->byteBuffer[0]) + list_.poolIndex_</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Short">
+        <Size>list_.count_</Size>
+        <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->shortBuffer[0]) + list_.poolIndex_</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Int">
+        <Size>list_.count_</Size>
+        <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->intBuffer[0]) + list_.poolIndex_</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Long">
+        <Size>list_.count_</Size>
+        <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->longBuffer[0]) + list_.poolIndex_</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Float">
+        <Size>list_.count_</Size>
+        <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->floatBuffer[0]) + list_.poolIndex_</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Double">
+        <Size>list_.count_</Size>
+        <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->doubleBuffer[0]) + list_.poolIndex_</ValuePointer>
+      </ArrayItems>
+
+      <IndexListItems Condition="type == TAG::Compound">
+        <Size>((ImNBT::DataStore*)dataStore)->compoundStorage[compound_.poolIndex_].size()</Size>
+        <ValueNode>((ImNBT::DataStore*)dataStore)->namedTags[(((ImNBT::DataStore*)dataStore)->compoundStorage[compound_.poolIndex_][$i]).idx]</ValueNode>
+      </IndexListItems>
+    </Expand>
+
+  </Type>
+
+
+  <Type Name="ImNBT::DataTag" Priority="MediumLow">
+    <DisplayString Condition="type == TAG::End">[End]</DisplayString>
+    <DisplayString Condition="type == TAG::Byte">[Byte] {byte_}</DisplayString>
+    <DisplayString Condition="type == TAG::Short">[Short] {short_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int">[Int] {int_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long">[Long] {long_}</DisplayString>
+    <DisplayString Condition="type == TAG::Float">[Float] {float_}</DisplayString>
+    <DisplayString Condition="type == TAG::Double">[Double] {double_}</DisplayString>
+    <DisplayString Condition="type == TAG::Byte_Array">[Byte_Array] length={byteArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int_Array">[Int_Array] length={intArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long_Array">[Long_Array] length={intArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::String">[String]</DisplayString>
+    <DisplayString Condition="type == TAG::List">[List&lt;{list_.elementType_}&gt;] length={list_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Compound">[Compound]</DisplayString>
+
+    <Expand>
+      <Item Name="Type">type</Item>
+      <Item Condition="type == TAG::Byte"   Name="Value">byte_</Item>
+      <Item Condition="type == TAG::Short"  Name="Value">short_</Item>
+      <Item Condition="type == TAG::Int"    Name="Value">int_</Item>
+      <Item Condition="type == TAG::Long"   Name="Value">long_</Item>
+      <Item Condition="type == TAG::Float"  Name="Value">float_</Item>
+      <Item Condition="type == TAG::Double" Name="Value">double_</Item>
+      <Synthetic Condition="type == TAG::Byte_Array" Name="Value" >
+        <DisplayString>This tag can only be inspected in debug mode</DisplayString>
+      </Synthetic>
+      <Synthetic Condition="type == TAG::Int_Array" Name="Value" >
+        <DisplayString>This tag can only be inspected in debug mode</DisplayString>
+      </Synthetic>
+      <Synthetic Condition="type == TAG::Long_Array" Name="Value" >
+        <DisplayString>This tag can only be inspected in debug mode</DisplayString>
+      </Synthetic>
+      <Synthetic Condition="type == TAG::String" Name="Value">
+        <DisplayString>This tag can only be inspected in debug mode</DisplayString>
+      </Synthetic>
+      <Synthetic Condition="type == TAG::List" Name="Value">
+        <DisplayString>This tag can only be inspected in debug mode</DisplayString>
+      </Synthetic>
+      <Synthetic Condition="type == TAG::Compound" Name="Value">
+        <DisplayString>This tag can only be inspected in debug mode</DisplayString>
+      </Synthetic>
+    </Expand>
+
+  </Type>
+
+</AutoVisualizer>

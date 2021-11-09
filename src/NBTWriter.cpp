@@ -298,4 +298,145 @@ void Writer::HandleNesting(StringView name, TAG t)
     ++(nesting.length);
 }
 
+Builder::Builder()
+{
+    BeginCompound("root");
+}
+
+Builder::~Builder()
+{
+    EndCompound();
+}
+
+bool Builder::BeginCompound(StringView name)
+{
+    NamedDataTagIndex tagIdx = dataStore.AddNamedDataTag(TAG::Compound, name);
+    if (!nestingStack.empty())
+    {
+        NestingInfo& nesting = nestingStack.top();
+        NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
+        if (tag.type == TAG::Compound)
+        {
+            dataStore.compoundStorage[tag.compound_.poolIndex_].push_back(tagIdx);
+        }
+    }
+    dataStore.compoundStorage.emplace_back();
+    NamedDataTag& tag = dataStore.namedTags[tagIdx];
+    tag.compound_.poolIndex_ = dataStore.compoundStorage.size() - 1;
+    nestingStack.push(NestingInfo{tagIdx, 0});
+    return true;
+}
+
+void Builder::EndCompound()
+{
+    NestingInfo& nesting = nestingStack.top();
+
+    nestingStack.pop();
+}
+
+bool Builder::BeginList(StringView name)
+{
+    NamedDataTagIndex tagIdx = dataStore.AddNamedDataTag(TAG::List, name);
+    if (!nestingStack.empty())
+    {
+        NestingInfo& nesting = nestingStack.top();
+        NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
+        if (tag.type == TAG::Compound)
+        {
+            dataStore.compoundStorage[tag.compound_.poolIndex_].push_back(tagIdx);
+        }
+    }
+    NamedDataTag& tag = dataStore.namedTags[tagIdx.idx];
+    tag.list_.count_ = 0;
+    tag.list_.elementType_ = TAG::End;
+    tag.list_.poolIndex_ = -1;
+    nestingStack.push(NestingInfo{tagIdx, tag.list_.count_ });
+
+    return true;
+}
+
+void Builder::EndList()
+{
+    NestingInfo& nesting = nestingStack.top();
+    NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
+    tag.list_.poolIndex_ = nesting.poolIndex;
+    nestingStack.pop();
+}
+
+void Builder::WriteByte(int8_t b, StringView name)
+{
+    
+}
+
+void Builder::WriteShort(int16_t s, StringView name)
+{
+    
+}
+
+void Builder::WriteInt(int32_t i, StringView name)
+{
+
+}
+
+void Builder::WriteLong(int64_t l, StringView name)
+{
+
+}
+
+void Builder::WriteFloat(float f, StringView name)
+{
+    if (!name.empty())
+    {
+        NamedDataTagIndex tagIdx = dataStore.AddNamedDataTag(TAG::Float, name);
+        if (!nestingStack.empty())
+        {
+            NestingInfo& nesting = nestingStack.top();
+            NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
+            if (tag.type == TAG::Compound)
+            {
+                dataStore.compoundStorage[tag.compound_.poolIndex_].push_back(tagIdx);
+            }
+        }
+        dataStore.namedTags[tagIdx.idx].float_ = f;
+    }
+    else
+    {
+        NestingInfo& nesting = nestingStack.top();
+        if (nesting.count == 0)
+        {
+            nesting.poolIndex = dataStore.floatBuffer.size();
+        }
+        ++nesting.count;
+        dataStore.namedTags[nesting.containerIdx].list_.elementType_ = TAG::Float;
+        ++dataStore.namedTags[nesting.containerIdx].list_.count_;
+        dataStore.floatBuffer.push_back(f);
+    }
+    ++(nestingStack.top().count);
+}
+
+void Builder::WriteDouble(double d, StringView name)
+{
+
+}
+
+void Builder::WriteByteArray(int8_t const* array, int32_t count, StringView name)
+{
+    
+}
+
+void Builder::WriteIntArray(int32_t const* array, int32_t count, StringView name)
+{
+    
+}
+
+void Builder::WriteLongArray(int64_t const* array, int32_t count, StringView name)
+{
+    
+}
+
+void Builder::WriteString(StringView str, StringView name)
+{
+    
+}
+
 } // namespace ImNBT

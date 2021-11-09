@@ -1,14 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace ImNBT
 {
 
-class DataStore;
+using StringView = std::string_view;
 
 enum class TAG : uint8_t
 {
@@ -32,33 +34,33 @@ struct TagPayload
 {
     struct ByteArray
     {
-        int32_t length_;
-        size_t pool_index_;
+        int32_t count_;
+        size_t poolIndex_;
     };
     struct IntArray
     {
-        int32_t length_;
-        size_t pool_index_;
+        int32_t count_;
+        size_t poolIndex_;
     };
     struct LongArray
     {
-        int32_t length_;
-        size_t pool_index_;
+        int32_t count_;
+        size_t poolIndex_;
     };
     struct String
     {
         int16_t length_;
-        size_t pool_index_;
+        size_t poolIndex_;
     };
     struct List
     {
-        TAG type_;
-        int32_t length_;
-        size_t pool_index_;
+        TAG elementType_;
+        int32_t count_;
+        size_t poolIndex_;
     };
     struct Compound
     {
-        size_t pool_index_;
+        size_t poolIndex_;
     };
 
     union
@@ -69,12 +71,12 @@ struct TagPayload
         int64_t long_;
         float float_;
         double double_;
-        ByteArray byte_array_;
+        ByteArray byteArray_;
         String string_;
         List list_;
         Compound compound_;
-        IntArray int_array_;
-        LongArray long_array_;
+        IntArray intArray_;
+        LongArray longArray_;
     };
 };
 
@@ -85,35 +87,46 @@ struct DataTag : TagPayload
 
     TAG type;
 #if defined(DEBUG)
-    DataStore* dataStore;
+    void* dataStore;
 #endif
 };
 
 struct NamedDataTag : DataTag
 {
-    //std::string_view name;
+    std::string_view name;
 };
 
 struct NamedDataTagIndex
 {
     uint64_t idx;
+    NamedDataTagIndex(uint64_t i) : idx(i) {}
+    NamedDataTagIndex() = default;
+    operator uint64_t&()
+    {
+        return idx;
+    }
+    bool operator<(NamedDataTagIndex const& rhs) const
+    {
+        return idx < rhs.idx;
+    }
 };
 
-class DataStore
+struct DataStore
 {
-public:
-    std::vector<int8_t> byteListBuffer;
-    std::vector<int16_t> shortListBuffer;
-    std::vector<int32_t> intListBuffer;
-    std::vector<int64_t> longListBuffer;
-    std::vector<float> floatListBuffer;
-    std::vector<double> doubleListBuffer;
+    std::vector<int8_t> byteBuffer;
+    std::vector<int16_t> shortBuffer;
+    std::vector<int32_t> intBuffer;
+    std::vector<int64_t> longBuffer;
+    std::vector<float> floatBuffer;
+    std::vector<double> doubleBuffer;
     std::vector<char> stringBuffer;
 
     // sets of indices into namedTags
-    std::vector<std::set<NamedDataTagIndex>> compoundStorage;
+    std::vector<std::vector<NamedDataTagIndex>> compoundStorage;
 
     std::vector<NamedDataTag> namedTags;
+
+    NamedDataTagIndex AddNamedDataTag(TAG type, StringView name);
 };
 
 } // namespace ImNBT

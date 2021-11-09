@@ -17,7 +17,7 @@ set(IMNBT_SOURCES
  )
 
  set(IMNBT_NATVIS
-  "natvis/$<IF:$<CONFIG:DEBUG>,debug,release>/imnbt.natvis"  
+  "natvis/imnbt.natvis"
  )
 
 add_library(ImNBT ${IMNBT_SOURCES} ${IMNBT_NATVIS})
