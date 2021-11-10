@@ -11,28 +11,33 @@
 
   <Type Name="ImNBT::DataTag">
     <DisplayString Condition="type == TAG::End">[End]</DisplayString>
-    <DisplayString Condition="type == TAG::Byte">[Byte] {byte_}</DisplayString>
-    <DisplayString Condition="type == TAG::Short">[Short] {short_}</DisplayString>
-    <DisplayString Condition="type == TAG::Int">[Int] {int_}</DisplayString>
-    <DisplayString Condition="type == TAG::Long">[Long] {long_}</DisplayString>
-    <DisplayString Condition="type == TAG::Float">[Float] {float_}</DisplayString>
-    <DisplayString Condition="type == TAG::Double">[Double] {double_}</DisplayString>
-    <DisplayString Condition="type == TAG::Byte_Array">[Byte_Array] count={byteArray_.count_}</DisplayString>
-    <DisplayString Condition="type == TAG::Int_Array">[Int_Array] count={intArray_.count_}</DisplayString>
-    <DisplayString Condition="type == TAG::Long_Array">[Long_Array] count={intArray_.count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Byte">[Byte] {As&lt;ImNBT::byte&gt;()}</DisplayString>
+    <DisplayString Condition="type == TAG::Short">[Short] {As&lt;short&gt;()}</DisplayString>
+    <DisplayString Condition="type == TAG::Int">[Int] {As&lt;int&gt;()}</DisplayString>
+    <!--
+    <DisplayString Condition="type == TAG::Long">[Long] {As&lt;int64_t&gt;()}</DisplayString>
+    -->
+    <DisplayString Condition="type == TAG::Float">[Float] {As&lt;float&gt;()}</DisplayString>
+    <DisplayString Condition="type == TAG::Double">[Double] {As&lt;double&gt;()}</DisplayString>
+    <DisplayString Condition="type == TAG::Byte_Array">[Byte_Array] count={As&lt;ImNBT::TagPayload::ByteArray&gt;().count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Int_Array">[Int_Array] count={As&lt;ImNBT::TagPayload::IntArray&gt;().count_}</DisplayString>
+    <DisplayString Condition="type == TAG::Long_Array">[Long_Array] count={As&lt;ImNBT::TagPayload::LongArray&gt;().count_}</DisplayString>
+    <!--
     <DisplayString Condition="type == TAG::String">[String]</DisplayString>
     <DisplayString Condition="type == TAG::List &amp;&amp; list_.count_">[List&lt;{list_.elementType_}&gt;] count={list_.count_}</DisplayString>
     <DisplayString Condition="type == TAG::List &amp;&amp; !list_.count_">[List] (empty)</DisplayString>
     <DisplayString Condition="type == TAG::Compound">[Compound]</DisplayString>
-
+    -->
     <Expand>
-      <Item Condition="type == TAG::Byte"   Name="Value">byte_</Item>
-      <Item Condition="type == TAG::Short"  Name="Value">short_</Item>
-      <Item Condition="type == TAG::Int"    Name="Value">int_</Item>
-      <Item Condition="type == TAG::Long"   Name="Value">long_</Item>
-      <Item Condition="type == TAG::Float"  Name="Value">float_</Item>
-      <Item Condition="type == TAG::Double" Name="Value">double_</Item>
+      <Item Condition="type == TAG::Byte"   Name="Value">As&lt;ImNBT::byte&gt;()</Item>
+      <Item Condition="type == TAG::Short"  Name="Value">As&lt;short&gt;()</Item>
+      <Item Condition="type == TAG::Int"    Name="Value">As&lt;int&gt;()</Item>
+      <Item Condition="type == TAG::Long"   Name="Value">As&lt;int64_t&gt;()</Item>
+      <Item Condition="type == TAG::Float"  Name="Value">As&lt;float&gt;()</Item>
+      <Item Condition="type == TAG::Double" Name="Value">As&lt;double&gt;()</Item>
+<!--
       <Item Condition="type == TAG::List &amp;&amp; list_.count_" Name="Element Type">list_.elementType_</Item>
+
       <ArrayItems Condition="type == TAG::List &amp;&amp; list_.elementType_ == TAG::Byte">
         <Size>list_.count_</Size>
         <ValuePointer>&amp;(((ImNBT::DataStore*)dataStore)->byteBuffer[0]) + list_.poolIndex_</ValuePointer>
@@ -62,11 +67,12 @@
         <Size>((ImNBT::DataStore*)dataStore)->compoundStorage[compound_.poolIndex_].size()</Size>
         <ValueNode>((ImNBT::DataStore*)dataStore)->namedTags[(((ImNBT::DataStore*)dataStore)->compoundStorage[compound_.poolIndex_][$i]).idx]</ValueNode>
       </IndexListItems>
+      -->
     </Expand>
 
   </Type>
 
-
+<!--
   <Type Name="ImNBT::DataTag" Priority="MediumLow">
     <DisplayString Condition="type == TAG::End">[End]</DisplayString>
     <DisplayString Condition="type == TAG::Byte">[Byte] {byte_}</DisplayString>
@@ -111,5 +117,6 @@
     </Expand>
 
   </Type>
+  -->
 
 </AutoVisualizer>

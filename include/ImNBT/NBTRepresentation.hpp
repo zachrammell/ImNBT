@@ -5,12 +5,31 @@
 #include <set>
 #include <string_view>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace ImNBT
 {
 
 using StringView = std::string_view;
+
+struct byte
+{
+    int8_t b;
+    byte& operator=(int8_t i)
+    {
+        b = i;
+        return *this;
+    }
+    operator int8_t&()
+    {
+        return b;
+    }
+    operator int8_t const &() const
+    {
+        return b;
+    }
+};
 
 enum class TAG : uint8_t
 {
@@ -29,6 +48,8 @@ enum class TAG : uint8_t
     Long_Array = 12,
     INVALID = 0xCC
 };
+
+bool IsContainer(TAG t);
 
 struct TagPayload
 {
@@ -54,30 +75,43 @@ struct TagPayload
     };
     struct List
     {
-        TAG elementType_;
-        int32_t count_;
-        size_t poolIndex_;
+        TAG elementType_ = TAG::End;
+        int32_t count_ = 0;
+        size_t poolIndex_ = std::numeric_limits<size_t>::max();
     };
     struct Compound
     {
-        size_t poolIndex_;
+        size_t storageIndex_ = std::numeric_limits<size_t>::max();
     };
 
-    union
+    template<typename T>
+    T& As()
     {
-        int8_t byte_;
-        int16_t short_;
-        int32_t int_;
-        int64_t long_;
-        float float_;
-        double double_;
-        ByteArray byteArray_;
-        String string_;
-        List list_;
-        Compound compound_;
-        IntArray intArray_;
-        LongArray longArray_;
-    };
+        return std::get<T>(data_);
+    }
+
+    template <typename T>
+    void Set(T val = T{})
+    {
+        data_.emplace<T>(val);
+    }
+
+private:
+    std::variant<
+        byte,
+        int16_t,
+        int32_t,
+        int64_t,
+        float,
+        double,
+        ByteArray,
+        IntArray,
+        LongArray,
+        String,
+        List,
+        Compound //
+        >
+        data_;
 };
 
 struct DataTag : TagPayload
@@ -105,28 +139,55 @@ struct NamedDataTagIndex
     {
         return idx;
     }
+    operator uint64_t const &() const
+    {
+        return idx;
+    }
     bool operator<(NamedDataTagIndex const& rhs) const
     {
         return idx < rhs.idx;
     }
 };
 
-struct DataStore
+/**
+ * Pools are the backing storage of lists/arrays
+ */
+
+template<typename... Ts>
+struct Pools
 {
-    std::vector<int8_t> byteBuffer;
-    std::vector<int16_t> shortBuffer;
-    std::vector<int32_t> intBuffer;
-    std::vector<int64_t> longBuffer;
-    std::vector<float> floatBuffer;
-    std::vector<double> doubleBuffer;
-    std::vector<char> stringBuffer;
+    std::tuple<std::vector<Ts>...> pools;
+
+    template<typename T>
+    std::vector<T>& Pool()
+    {
+        return std::get<std::vector<T>>(pools);
+    }
+};
+
+struct DataStore
+    : Pools<byte, int16_t, int32_t, int64_t, float, double, char, TagPayload::List, TagPayload::Compound>
+{
 
     // sets of indices into namedTags
     std::vector<std::vector<NamedDataTagIndex>> compoundStorage;
 
     std::vector<NamedDataTag> namedTags;
 
-    NamedDataTagIndex AddNamedDataTag(TAG type, StringView name);
+    template<typename T>
+    NamedDataTagIndex AddNamedDataTag(TAG type, StringView name)
+    {
+        NamedDataTag tag;
+        tag.type = type;
+        tag.name = name;
+#if defined(DEBUG)
+        tag.dataStore = this;
+#endif
+        tag.Set<T>();
+        namedTags.emplace_back(tag);
+
+        return { namedTags.size() - 1 };
+    }
 };
 
 } // namespace ImNBT

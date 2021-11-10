@@ -74,7 +74,7 @@ bool Reader::OpenList(StringView name)
   if (found != named_tags_.end())
   {
     nesting_info_.emplace(
-          NestingInfo{ found->second.list_.elementType_, NestingInfo::ContainerType::List, found->second.list_.count_, 0 });
+          NestingInfo{ found->second.As<TagPayload::List>().elementType_, NestingInfo::ContainerType::List, found->second.As<TagPayload::List>().count_, 0 });
     return true;
   }
   PopLatestName();
@@ -110,7 +110,7 @@ int8_t Reader::ReadByte(StringView name)
   auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type == TAG::Byte);
-  return found->second.byte_;
+  return found->second.As<byte>();
 }
 
 int16_t Reader::ReadShort(StringView name)
@@ -119,7 +119,7 @@ int16_t Reader::ReadShort(StringView name)
   auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type == TAG::Short);
-  return found->second.short_;
+  return found->second.As<int16_t>();
 }
 
 int32_t Reader::ReadInt(StringView name)
@@ -128,7 +128,7 @@ int32_t Reader::ReadInt(StringView name)
   auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type == TAG::Int);
-  return found->second.int_;
+  return found->second.As<int32_t>();
 }
 
 int64_t Reader::ReadLong(StringView name)
@@ -137,7 +137,7 @@ int64_t Reader::ReadLong(StringView name)
   auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type == TAG::Long);
-  return found->second.long_;
+  return found->second.As<int64_t>();
 }
 
 float Reader::ReadFloat(StringView name)
@@ -146,7 +146,7 @@ float Reader::ReadFloat(StringView name)
   auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type == TAG::Float);
-  return found->second.float_;
+  return found->second.As<float>();
 }
 
 double Reader::ReadDouble(StringView name)
@@ -155,7 +155,7 @@ double Reader::ReadDouble(StringView name)
   auto const found = named_tags_.find(current_name_);
   PopLatestName();
   assert(found->second.type == TAG::Double);
-  return found->second.double_;
+  return found->second.As<double>();
 }
 
 std::vector<int8_t> Reader::ReadByteArray(StringView name)
@@ -165,8 +165,8 @@ std::vector<int8_t> Reader::ReadByteArray(StringView name)
   PopLatestName();
   assert(found->second.type == TAG::Byte_Array);
   std::vector<int8_t> ret {
-      byte_array_pool_.data() + found->second.byteArray_.poolIndex_,
-      byte_array_pool_.data() + found->second.byteArray_.count_
+      byte_array_pool_.data() + found->second.As<TagPayload::ByteArray>().poolIndex_,
+      byte_array_pool_.data() + found->second.As<TagPayload::ByteArray>().count_
   };
   return ret;
 }
@@ -178,8 +178,8 @@ StringView Reader::ReadString(StringView name)
   PopLatestName();
   assert(found->second.type == TAG::String);
   return StringView {
-      string_pool_.data() + found->second.string_.poolIndex_,
-      static_cast<size_t>(found->second.string_.length_)
+      string_pool_.data() + found->second.As<TagPayload::String>().poolIndex_,
+      static_cast<size_t>(found->second.As<TagPayload::String>().length_)
   };
 }
 
@@ -191,7 +191,7 @@ Optional<int8_t> Reader::MaybeReadByte(StringView name)
   if (found != named_tags_.end())
   {
     assert(found->second.type == TAG::Byte);
-      return std::make_optional(found->second.byte_);
+      return std::make_optional(found->second.As<byte>());
   }
   return std::nullopt;
 }
@@ -204,7 +204,7 @@ Optional<int16_t> Reader::MaybeReadShort(StringView name)
   if (found != named_tags_.end())
   {
     assert(found->second.type == TAG::Short);
-      return std::make_optional(found->second.short_);
+      return std::make_optional(found->second.As<int16_t>());
   }
   return std::nullopt;
 }
@@ -217,7 +217,7 @@ Optional<int32_t> Reader::MaybeReadInt(StringView name)
   if (found != named_tags_.end())
   {
     assert(found->second.type == TAG::Int);
-      return std::make_optional(found->second.int_);
+      return std::make_optional(found->second.As<int32_t>());
   }
   return std::nullopt;
 }
@@ -230,7 +230,7 @@ Optional<int64_t> Reader::MaybeReadLong(StringView name)
   if (found != named_tags_.end())
   {
     assert(found->second.type == TAG::Long);
-      return std::make_optional(found->second.long_);
+      return std::make_optional(found->second.As<int64_t>());
   }
   return std::nullopt;
 }
@@ -243,7 +243,7 @@ Optional<float> Reader::MaybeReadFloat(StringView name)
   if (found != named_tags_.end())
   {
     assert(found->second.type == TAG::Float);
-      return std::make_optional(found->second.float_);
+      return std::make_optional(found->second.As<float>());
   }
   return std::nullopt;
 }
@@ -256,7 +256,7 @@ Optional<double> Reader::MaybeReadDouble(StringView name)
   if (found != named_tags_.end())
   {
     assert(found->second.type == TAG::Double);
-      return std::make_optional(found->second.double_);
+      return std::make_optional(found->second.As<double>());
   }
   return std::nullopt;
 }
@@ -270,8 +270,8 @@ Optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
   {
     assert(found->second.type == TAG::Byte_Array);
     std::vector<int8_t> ret {
-      byte_array_pool_.data() + found->second.byteArray_.poolIndex_,
-      byte_array_pool_.data() + found->second.byteArray_.count_
+      byte_array_pool_.data() + found->second.As<TagPayload::ByteArray>().poolIndex_,
+        byte_array_pool_.data() + found->second.As<TagPayload::ByteArray>().count_
     };
     return std::make_optional(ret);
   }
@@ -287,8 +287,8 @@ Optional<StringView> Reader::MaybeReadString(StringView name)
   {
     assert(found->second.type == TAG::String);
     return std::make_optional<StringView>(
-        string_pool_.data() + found->second.string_.poolIndex_,
-        static_cast<size_t>(found->second.string_.length_));
+        string_pool_.data() + found->second.As<TagPayload::String>().poolIndex_,
+        static_cast<size_t>(found->second.As<TagPayload::String>().length_));
   }
   return std::nullopt;
 }
@@ -449,13 +449,16 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
   case TAG::List:
   {
     ++parsing_nesting_depth_;
-    data_tag.list_.elementType_ = ReadTag();
-    data_tag.list_.count_ = ReadArrayLen();
-    // read len unnamed elements
-    for (int i = 0; i < data_tag.list_.count_; ++i)
+    auto elementType = ReadTag();
+    auto count = ReadArrayLen();
+    data_tag.Set<TagPayload::List>();
+    data_tag.As<TagPayload::List>().elementType_ = elementType;
+    data_tag.As<TagPayload::List>().count_ = count;
+    // read 'count' unnamed elements
+    for (int i = 0; i < count; ++i)
     {
       AddIndexToCurrentName(i);
-        named_tags_.emplace(current_name_, ParseDataTagUnnamed(data_tag.list_.elementType_));
+        named_tags_.emplace(current_name_, ParseDataTagUnnamed(elementType));
       PopLatestName();
     }
     --parsing_nesting_depth_;
@@ -478,42 +481,42 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
   {
     int8_t val;
     fread(&val, sizeof(val), 1, infile_);
-    data_tag.byte_ = val;
+    data_tag.Set<byte>(byte{ val });
   }
   break;
   case TAG::Short:
   {
     int16_t val;
     fread(&val, sizeof(val), 1, infile_);
-    data_tag.short_ = swap_i16(val);
+    data_tag.Set<int16_t>(swap_i16(val));
   }
   break;
   case TAG::Int:
   {
     int32_t val;
     fread(&val, sizeof(val), 1, infile_);
-    data_tag.int_ = swap_i32(val);
+    data_tag.Set<int32_t>(swap_i32(val));
   }
   break;
   case TAG::Long:
   {
     int64_t val;
     fread(&val, sizeof(val), 1, infile_);
-    data_tag.long_ = swap_i64(val);
+    data_tag.Set<int64_t>(swap_i64(val));
   }
   break;
   case TAG::Float:
   {
     float val;
     fread(&val, sizeof(val), 1, infile_);
-    data_tag.float_ = swap_f32(val);
+    data_tag.Set<float>(swap_f32(val));
   }
   break;
   case TAG::Double:
   {
     double val;
     fread(&val, sizeof(val), 1, infile_);
-    data_tag.double_ = swap_f64(val);
+    data_tag.Set<double>(swap_f64(val));
   }
   break;
   case TAG::String:
@@ -522,8 +525,9 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
     size_t const insertion_point = string_pool_.size();
     string_pool_.resize(insertion_point + length + 1, '\0');
     fread(string_pool_.data() + insertion_point, sizeof(char), length, infile_);
-    data_tag.string_.poolIndex_ = insertion_point;
-    data_tag.string_.length_ = length;
+    data_tag.Set<TagPayload::String>();
+    data_tag.As<TagPayload::String>().poolIndex_ = insertion_point;
+    data_tag.As<TagPayload::String>().length_ = length;
   }
   break;
   case TAG::Byte_Array:
@@ -532,8 +536,9 @@ DataTag& Reader::ParseDataTagUnnamed(TAG type)
     size_t const insertion_point = byte_array_pool_.size();
     byte_array_pool_.resize(insertion_point + length + 1, 0);
     fread(byte_array_pool_.data() + insertion_point, sizeof(char), length, infile_);
-    data_tag.byteArray_.poolIndex_ = insertion_point;
-    data_tag.byteArray_.count_ = length;
+    data_tag.Set<TagPayload::ByteArray>();
+    data_tag.As<TagPayload::ByteArray>().poolIndex_ = insertion_point;
+    data_tag.As<TagPayload::ByteArray>().count_ = length;
   }
   break;
   default:

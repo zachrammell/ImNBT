@@ -59,7 +59,7 @@ void BuilderTest()
 
 int main()
 {
-    //ImNBT::Reader reader("test/data/bigtest_uncompr");
+    ImNBT::Reader reader("test/data/bigtest_uncompr");
 
     BuilderTest();
 

@@ -2,6 +2,7 @@
 
 #include "NBTRepresentation.hpp"
 
+#include <cassert>
 #include <cstdio>
 #include <string_view>
 #include <stack>
@@ -87,6 +88,8 @@ public:
   void WriteFloat(float f, StringView name = "");
   void WriteDouble(double d, StringView name = "");
   void WriteByteArray(int8_t const* array, int32_t length, StringView name = "");
+  void WriteIntArray(int32_t const* array, int32_t count, StringView name = "");
+  void WriteLongArray(int64_t const* array, int32_t count, StringView name = "");
   void WriteString(StringView str, StringView name = "");
 
   /*!
@@ -155,14 +158,104 @@ public:
 private:
     DataStore dataStore;
 
-    struct NestingInfo
+    struct ContainerInfo
     {
-        NamedDataTagIndex containerIdx;
-        int64_t poolIndex;
-        int32_t count;
+        bool named;
+        TAG type;
+        struct NamedContainer
+        {
+            NamedDataTagIndex tagIndex;
+        };
+        struct AnonContainer
+        {
+            uint64_t poolIndex;
+        };
+        union
+        {
+            NamedContainer namedContainer;
+            AnonContainer anonContainer;
+        };
+
+        TAG& Type();
+        TAG Type() const;
+        TAG& ElementType(DataStore& ds);
+        int32_t Count(DataStore& ds) const;
+        void IncrementCount(DataStore& ds);
+        uint64_t Storage(DataStore& ds);
     };
 
-    std::stack<NestingInfo> nestingStack;
+    std::stack<ContainerInfo> containers;
+
+    bool HandleNesting(TAG t, StringView name);
+
+    template<typename T>
+    bool WriteTag(TAG type, StringView name, T value)
+    {
+        if (containers.size() >= 512)
+        {
+            assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
+            return false;
+        }
+        ContainerInfo& container = containers.top();
+        if (container.Type() == TAG::Compound)
+        {
+            NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
+            dataStore.namedTags[newTagIndex].As<T>() = value;
+            dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
+            if (IsContainer(type))
+            {
+                ContainerInfo newContainer {};
+                newContainer.named = true;
+                newContainer.Type() = type;
+                newContainer.namedContainer.tagIndex = newTagIndex;
+                if (type == TAG::Compound)
+                {
+                    dataStore.namedTags[newTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+                    dataStore.compoundStorage.emplace_back();
+                }
+                containers.push(newContainer);
+            }
+        }
+        else if (container.Type() == TAG::List)
+        {
+            if (!name.empty())
+            {
+                assert(!"Writer: Name Error - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
+                return false;
+            }
+            // The list is not exclusively the same type as this tag
+            if (container.ElementType(dataStore) != type)
+            {
+                // If the list is currently empty, make it into a list of tags of this type
+                if (container.Count(dataStore) == 0)
+                {
+                    container.ElementType(dataStore) = type;
+                }
+                else
+                {
+                    assert(!"Writer: Type Error - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
+                    return false;
+                }
+            }
+            uint64_t poolIndex = dataStore.Pool<T>().size();
+            dataStore.Pool<T>().push_back(value);
+            container.IncrementCount(dataStore);
+            if (IsContainer(type))
+            {
+                ContainerInfo newContainer {};
+                newContainer.named = false;
+                newContainer.Type() = type;
+                newContainer.anonContainer.poolIndex = poolIndex;
+                if (type == TAG::Compound)
+                {
+                    dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ = dataStore.compoundStorage.size();
+                    dataStore.compoundStorage.emplace_back();
+                }
+                containers.push(newContainer);
+            }
+        }
+        return true;
+    }
 };
 
 }

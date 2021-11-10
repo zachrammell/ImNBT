@@ -178,6 +178,30 @@ void Writer::WriteByteArray(int8_t const* array, int32_t length, StringView name
     fwrite(&array, sizeof(array[0]), length, outfile_);
 }
 
+void Writer::WriteIntArray(int32_t const* array, int32_t count, StringView name)
+{
+    HandleNesting(name, TAG::Int_Array);
+    if (!name.empty())
+    {
+        WriteTag(TAG::Int_Array);
+        WriteStr(name);
+    }
+    WriteArrayLen(count);
+    fwrite(&array, sizeof(array[0]), count, outfile_);
+}
+
+void Writer::WriteLongArray(int64_t const* array, int32_t count, StringView name)
+{
+    HandleNesting(name, TAG::Long_Array);
+    if (!name.empty())
+    {
+        WriteTag(TAG::Long_Array);
+        WriteStr(name);
+    }
+    WriteArrayLen(count);
+    fwrite(&array, sizeof(array[0]), count, outfile_);
+}
+
 void Writer::WriteString(StringView str, StringView name)
 {
     HandleNesting(name, TAG::String);
@@ -300,7 +324,17 @@ void Writer::HandleNesting(StringView name, TAG t)
 
 Builder::Builder()
 {
-    BeginCompound("root");
+    NamedDataTagIndex rootTagIndex = dataStore.AddNamedDataTag<TagPayload::Compound>(TAG::Compound, "root");
+
+    ContainerInfo rootContainer{};
+    rootContainer.named = true;
+    rootContainer.Type() = TAG::Compound;
+    rootContainer.namedContainer.tagIndex = rootTagIndex;
+
+    dataStore.namedTags[rootTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+    dataStore.compoundStorage.emplace_back();
+
+    containers.push(rootContainer);
 }
 
 Builder::~Builder()
@@ -310,133 +344,185 @@ Builder::~Builder()
 
 bool Builder::BeginCompound(StringView name)
 {
-    NamedDataTagIndex tagIdx = dataStore.AddNamedDataTag(TAG::Compound, name);
-    if (!nestingStack.empty())
-    {
-        NestingInfo& nesting = nestingStack.top();
-        NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
-        if (tag.type == TAG::Compound)
-        {
-            dataStore.compoundStorage[tag.compound_.poolIndex_].push_back(tagIdx);
-        }
-    }
-    dataStore.compoundStorage.emplace_back();
-    NamedDataTag& tag = dataStore.namedTags[tagIdx];
-    tag.compound_.poolIndex_ = dataStore.compoundStorage.size() - 1;
-    nestingStack.push(NestingInfo{tagIdx, 0});
-    return true;
+    return WriteTag(TAG::Compound, name, TagPayload::Compound{});
 }
 
 void Builder::EndCompound()
 {
-    NestingInfo& nesting = nestingStack.top();
-
-    nestingStack.pop();
+    ContainerInfo& container = containers.top();
+    assert(container.Type() == TAG::Compound);
+    containers.pop();
 }
 
 bool Builder::BeginList(StringView name)
 {
-    NamedDataTagIndex tagIdx = dataStore.AddNamedDataTag(TAG::List, name);
-    if (!nestingStack.empty())
-    {
-        NestingInfo& nesting = nestingStack.top();
-        NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
-        if (tag.type == TAG::Compound)
-        {
-            dataStore.compoundStorage[tag.compound_.poolIndex_].push_back(tagIdx);
-        }
-    }
-    NamedDataTag& tag = dataStore.namedTags[tagIdx.idx];
-    tag.list_.count_ = 0;
-    tag.list_.elementType_ = TAG::End;
-    tag.list_.poolIndex_ = -1;
-    nestingStack.push(NestingInfo{tagIdx, tag.list_.count_ });
-
-    return true;
+    return WriteTag(TAG::List, name, TagPayload::List{});
 }
 
 void Builder::EndList()
 {
-    NestingInfo& nesting = nestingStack.top();
-    NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
-    tag.list_.poolIndex_ = nesting.poolIndex;
-    nestingStack.pop();
+    ContainerInfo& container = containers.top();
+    assert(container.Type() == TAG::List);
+    containers.pop();
 }
 
 void Builder::WriteByte(int8_t b, StringView name)
 {
-    
+    WriteTag(TAG::Byte, name, byte{ b });
 }
 
 void Builder::WriteShort(int16_t s, StringView name)
 {
-    
+    WriteTag(TAG::Short, name, s);
 }
 
 void Builder::WriteInt(int32_t i, StringView name)
 {
-
+    WriteTag(TAG::Int, name, i);
 }
 
 void Builder::WriteLong(int64_t l, StringView name)
 {
-
+    WriteTag(TAG::Long, name, l);
 }
 
 void Builder::WriteFloat(float f, StringView name)
 {
-    if (!name.empty())
-    {
-        NamedDataTagIndex tagIdx = dataStore.AddNamedDataTag(TAG::Float, name);
-        if (!nestingStack.empty())
-        {
-            NestingInfo& nesting = nestingStack.top();
-            NamedDataTag& tag = dataStore.namedTags[nesting.containerIdx];
-            if (tag.type == TAG::Compound)
-            {
-                dataStore.compoundStorage[tag.compound_.poolIndex_].push_back(tagIdx);
-            }
-        }
-        dataStore.namedTags[tagIdx.idx].float_ = f;
-    }
-    else
-    {
-        NestingInfo& nesting = nestingStack.top();
-        if (nesting.count == 0)
-        {
-            nesting.poolIndex = dataStore.floatBuffer.size();
-        }
-        ++nesting.count;
-        dataStore.namedTags[nesting.containerIdx].list_.elementType_ = TAG::Float;
-        ++dataStore.namedTags[nesting.containerIdx].list_.count_;
-        dataStore.floatBuffer.push_back(f);
-    }
-    ++(nestingStack.top().count);
+    WriteTag(TAG::Float, name, f);
 }
 
 void Builder::WriteDouble(double d, StringView name)
 {
-
+    WriteTag(TAG::Double, name, d);
 }
 
 void Builder::WriteByteArray(int8_t const* array, int32_t count, StringView name)
 {
-    
 }
 
 void Builder::WriteIntArray(int32_t const* array, int32_t count, StringView name)
 {
-    
 }
 
 void Builder::WriteLongArray(int64_t const* array, int32_t count, StringView name)
 {
-    
 }
 
 void Builder::WriteString(StringView str, StringView name)
 {
-    
+    WriteTag(TAG::String, name, TagPayload::String{});
+}
+
+TAG& Builder::ContainerInfo::Type()
+{
+    return type;
+}
+
+TAG Builder::ContainerInfo::Type() const
+{
+    return type;
+}
+
+TAG& Builder::ContainerInfo::ElementType(DataStore& ds)
+{
+    // only Lists have single element types
+    assert(Type() == TAG::List);
+    if (named)
+    {
+        return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().elementType_;
+    }
+    return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].elementType_;
+}
+
+int32_t Builder::ContainerInfo::Count(DataStore& ds) const
+{
+    if (named)
+    {
+        switch (Type())
+        {
+            case TAG::List:
+                return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
+            case TAG::Compound:
+                return ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_].size();
+            default:
+                assert(!"Writer : Internal Type Error - This should never happen.");
+                return -1;
+        }
+    }
+    switch (Type())
+    {
+        case TAG::List:
+            return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].count_;
+        case TAG::Compound:
+            return ds.compoundStorage[ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_].size();
+        default:
+            assert(!"Writer : Internal Type Error - This should never happen.");
+            return -1;
+    }
+}
+
+void Builder::ContainerInfo::IncrementCount(DataStore& ds)
+{
+    // only lists can have their count incremented
+    assert(Type() == TAG::List);
+    ++ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
+}
+
+uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
+{
+    // only compounds can have storage
+    assert(Type() == TAG::Compound);
+    if (named)
+    {
+        return ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_;
+    }
+    return ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_;
+}
+
+bool Builder::HandleNesting(TAG t, StringView name)
+{
+    if (containers.size() >= 512)
+    {
+        assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
+        return false;
+    }
+
+    ContainerInfo& container = containers.top();
+
+    // Lists have strict requirements
+    if (container.Type() == TAG::List)
+    {
+        if (!name.empty())
+        {
+            assert(!"Writer: List Element Named - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
+            return false;
+        }
+        TAG& elementType = container.ElementType(dataStore);
+        // The list is not exclusively the same type as this tag
+        if (elementType != t)
+        {
+            // If the list is currently empty, make it into a list of tags of this type
+            if (container.Count(dataStore) == 0)
+            {
+                elementType = t;
+            }
+            else
+            {
+                assert(!"Writer: List Type Mismatch - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
+                return false;
+            }
+        }
+        container.IncrementCount(dataStore);
+    }
+    else if (container.Type() == TAG::Compound)
+    {
+        if (name.empty())
+        {
+            assert(!"Writer: Compound Structure Error - Attempted to add an unnamed tag to a compound. All tags in a compound must be named.\n");
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace ImNBT
