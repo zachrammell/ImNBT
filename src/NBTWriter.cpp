@@ -398,19 +398,42 @@ void Builder::WriteDouble(double d, StringView name)
 
 void Builder::WriteByteArray(int8_t const* array, int32_t count, StringView name)
 {
+    WriteTag<TagPayload::ByteArray>(TAG::Byte_Array, name, [this, array, count]() {
+        auto bytePool = dataStore.Pool<byte>();
+        TagPayload::ByteArray byteArrayTag{ count, bytePool.size() };
+        bytePool.insert(bytePool.end(), array, array + count);
+        return byteArrayTag;
+    });
 }
 
 void Builder::WriteIntArray(int32_t const* array, int32_t count, StringView name)
 {
+    WriteTag<TagPayload::IntArray>(TAG::Int_Array, name, [this, array, count]() {
+        auto intPool = dataStore.Pool<int32_t>();
+        TagPayload::IntArray intArrayTag{ count, intPool.size() };
+        intPool.insert(intPool.end(), array, array + count);
+        return intArrayTag;
+    });
 }
 
 void Builder::WriteLongArray(int64_t const* array, int32_t count, StringView name)
 {
+    WriteTag<TagPayload::LongArray>(TAG::Long_Array, name, [this, array, count]() {
+        auto longPool = dataStore.Pool<int64_t>();
+        TagPayload::LongArray longArrayTag{ count, longPool.size() };
+        longPool.insert(longPool.end(), array, array + count);
+        return longArrayTag;
+    });
 }
 
 void Builder::WriteString(StringView str, StringView name)
 {
-    
+    WriteTag<TagPayload::String>(TAG::String, name, [this, str]() {
+        auto stringPool = dataStore.Pool<char>();
+        TagPayload::String stringTag{ str.size(), stringPool.size() };
+        stringPool.insert(stringPool.end(), str.data(), str.data() + str.size());
+        return stringTag;
+    });
 }
 
 TAG& Builder::ContainerInfo::Type()
@@ -477,52 +500,6 @@ uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
         return ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_;
     }
     return ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_;
-}
-
-bool Builder::HandleNesting(TAG t, StringView name)
-{
-    if (containers.size() >= 512)
-    {
-        assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
-        return false;
-    }
-
-    ContainerInfo& container = containers.top();
-
-    // Lists have strict requirements
-    if (container.Type() == TAG::List)
-    {
-        if (!name.empty())
-        {
-            assert(!"Writer: List Element Named - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
-            return false;
-        }
-        TAG& elementType = container.ElementType(dataStore);
-        // The list is not exclusively the same type as this tag
-        if (elementType != t)
-        {
-            // If the list is currently empty, make it into a list of tags of this type
-            if (container.Count(dataStore) == 0)
-            {
-                elementType = t;
-            }
-            else
-            {
-                assert(!"Writer: List Type Mismatch - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
-                return false;
-            }
-        }
-        container.IncrementCount(dataStore);
-    }
-    else if (container.Type() == TAG::Compound)
-    {
-        if (name.empty())
-        {
-            assert(!"Writer: Compound Structure Error - Attempted to add an unnamed tag to a compound. All tags in a compound must be named.\n");
-            return false;
-        }
-    }
-    return true;
 }
 
 template<typename T, typename Fn>

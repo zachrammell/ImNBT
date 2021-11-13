@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
-#include <set>
 #include <string_view>
 #include <unordered_set>
 #include <variant>
@@ -16,6 +14,8 @@ using StringView = std::string_view;
 struct byte
 {
     int8_t b;
+    byte() = default;
+    byte(int8_t i) : b(i) {}
     byte& operator=(int8_t i)
     {
         b = i;
@@ -90,7 +90,7 @@ struct TagPayload
         return std::get<T>(data_);
     }
 
-    template <typename T>
+    template<typename T>
     void Set(T val = T{})
     {
         data_.emplace<T>(val);
@@ -166,7 +166,9 @@ struct Pools
 };
 
 struct DataStore
-    : Pools<byte, int16_t, int32_t, int64_t, float, double, char, TagPayload::List, TagPayload::Compound>
+    : Pools<byte, int16_t, int32_t, int64_t, float, double, char,
+            TagPayload::ByteArray, TagPayload::IntArray, TagPayload::LongArray, TagPayload::String,
+            TagPayload::List, TagPayload::Compound>
 {
 
     // sets of indices into namedTags

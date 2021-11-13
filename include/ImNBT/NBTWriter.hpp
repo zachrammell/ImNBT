@@ -187,8 +187,6 @@ private:
 
     std::stack<ContainerInfo> containers;
 
-    bool HandleNesting(TAG t, StringView name);
-
     template<typename T, typename Fn>
     bool WriteTag(TAG type, StringView name, Fn valueGetter);
 
