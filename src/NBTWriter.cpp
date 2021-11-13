@@ -410,7 +410,7 @@ void Builder::WriteLongArray(int64_t const* array, int32_t count, StringView nam
 
 void Builder::WriteString(StringView str, StringView name)
 {
-    WriteTag(TAG::String, name, TagPayload::String{});
+    
 }
 
 TAG& Builder::ContainerInfo::Type()
@@ -523,6 +523,81 @@ bool Builder::HandleNesting(TAG t, StringView name)
         }
     }
     return true;
+}
+
+template<typename T, typename Fn>
+bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
+{
+    if (containers.size() >= 512)
+    {
+        assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
+        return false;
+    }
+    ContainerInfo& container = containers.top();
+    if (container.Type() == TAG::Compound)
+    {
+        NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
+        dataStore.namedTags[newTagIndex].As<T>() = valueGetter();
+        dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
+        if (IsContainer(type))
+        {
+            ContainerInfo newContainer{};
+            newContainer.named = true;
+            newContainer.Type() = type;
+            newContainer.namedContainer.tagIndex = newTagIndex;
+            if (type == TAG::Compound)
+            {
+                dataStore.namedTags[newTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+                dataStore.compoundStorage.emplace_back();
+            }
+            containers.push(newContainer);
+        }
+    }
+    else if (container.Type() == TAG::List)
+    {
+        if (!name.empty())
+        {
+            assert(!"Writer: Name Error - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
+            return false;
+        }
+        // The list is not exclusively the same type as this tag
+        if (container.ElementType(dataStore) != type)
+        {
+            // If the list is currently empty, make it into a list of tags of this type
+            if (container.Count(dataStore) == 0)
+            {
+                container.ElementType(dataStore) = type;
+            }
+            else
+            {
+                assert(!"Writer: Type Error - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
+                return false;
+            }
+        }
+        uint64_t poolIndex = dataStore.Pool<T>().size();
+        dataStore.Pool<T>().push_back(valueGetter());
+        container.IncrementCount(dataStore);
+        if (IsContainer(type))
+        {
+            ContainerInfo newContainer{};
+            newContainer.named = false;
+            newContainer.Type() = type;
+            newContainer.anonContainer.poolIndex = poolIndex;
+            if (type == TAG::Compound)
+            {
+                dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ = dataStore.compoundStorage.size();
+                dataStore.compoundStorage.emplace_back();
+            }
+            containers.push(newContainer);
+        }
+    }
+    return true;
+}
+
+template<typename T, std::enable_if_t<!std::is_invocable_v<T>, bool>>
+bool Builder::WriteTag(TAG type, StringView name, T value)
+{
+    return WriteTag<T>(type, name, [&value]() -> T { return value; });
 }
 
 } // namespace ImNBT

@@ -4,8 +4,9 @@
 
 #include <cassert>
 #include <cstdio>
-#include <string_view>
 #include <stack>
+#include <string_view>
+#include <type_traits>
 
 namespace ImNBT
 {
@@ -13,14 +14,14 @@ namespace ImNBT
 class Writer
 {
 public:
-  /*!
+    /*!
    * \brief opens and begins writing data to an NBT file
    * \param filepath path of NBT file to create/overwrite and write to
    */
-  explicit Writer(StringView filepath);
-  ~Writer();
+    explicit Writer(StringView filepath);
+    ~Writer();
 
-  /*!
+    /*!
    * \brief begins a Compound of other tags.
    * This means that all writes until EndCompound() is called will be written into this compound.
    * Compounds are analogous to structs and contain named tags of any type.
@@ -46,14 +47,14 @@ public:
    * \param name the name to give this compound tag
    * \return true if compound is successfully opened, false otherwise
    */
-  bool BeginCompound(StringView name = "");
-  /*!
+    bool BeginCompound(StringView name = "");
+    /*!
    * \brief Ends writing to a previously started compound. Should only be called if BeginCompound() returned true.
    * After calling, writes will no longer be added to the compound.
    */
-  void EndCompound();
+    void EndCompound();
 
-  /*!
+    /*!
    * \brief begins a List of other tags.
    *  This means that all writes until EndList() is called will be written into this list.
    *  Lists are analogous to arrays, and are intended for grouping data that has an obvious structure or otherwise does not need a name.
@@ -74,25 +75,25 @@ public:
    * \param name the name to give this list object
    * \return true if list is opened for writing, false otherwise
    */
-  bool BeginList(StringView name = "");
-  /*!
+    bool BeginList(StringView name = "");
+    /*!
    * \brief Ends writing to a previously started list. Should only be called if BeginList() returned true.
    * After calling, writes will no longer be added to the list.
    */
-  void EndList();
+    void EndList();
 
-  void WriteByte(int8_t b, StringView name = "");
-  void WriteShort(int16_t s, StringView name = "");
-  void WriteInt(int32_t i, StringView name = "");
-  void WriteLong(int64_t l, StringView name = "");
-  void WriteFloat(float f, StringView name = "");
-  void WriteDouble(double d, StringView name = "");
-  void WriteByteArray(int8_t const* array, int32_t length, StringView name = "");
-  void WriteIntArray(int32_t const* array, int32_t count, StringView name = "");
-  void WriteLongArray(int64_t const* array, int32_t count, StringView name = "");
-  void WriteString(StringView str, StringView name = "");
+    void WriteByte(int8_t b, StringView name = "");
+    void WriteShort(int16_t s, StringView name = "");
+    void WriteInt(int32_t i, StringView name = "");
+    void WriteLong(int64_t l, StringView name = "");
+    void WriteFloat(float f, StringView name = "");
+    void WriteDouble(double d, StringView name = "");
+    void WriteByteArray(int8_t const* array, int32_t length, StringView name = "");
+    void WriteIntArray(int32_t const* array, int32_t count, StringView name = "");
+    void WriteLongArray(int64_t const* array, int32_t count, StringView name = "");
+    void WriteString(StringView str, StringView name = "");
 
-  /*!
+    /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable serialization.
    * It's a generic writer function. for the basic NBT types, it acts exactly like calling the explicit function.
    * For other types, the behavior is user-defined.
@@ -100,36 +101,36 @@ public:
    * \param value value to write
    * \param name name of value to write
    */
-  template<typename T>
-  void Write(T value, StringView name = "");
+    template<typename T>
+    void Write(T value, StringView name = "");
 
 private:
-  void WriteTag(TAG t);
-  /* The following functions are for raw writing without considering names, types, or nesting */
+    void WriteTag(TAG t);
+    /* The following functions are for raw writing without considering names, types, or nesting */
 
-  void WriteStr(StringView name);
-  void WriteStrLen(int16_t len);
-  void WriteArrayLen(int32_t len);
+    void WriteStr(StringView name);
+    void WriteStrLen(int16_t len);
+    void WriteArrayLen(int32_t len);
 
-  void BeginRoot();
+    void BeginRoot();
 
-  void HandleNesting(StringView name, TAG t);
+    void HandleNesting(StringView name, TAG t);
 
-  FILE* outfile_;
+    FILE* outfile_;
 
-  struct NestingInfo
-  {
-    TAG data_type;
-    enum class ContainerType
+    struct NestingInfo
     {
-      List,
-      Compound
-    } container_type;
-    int32_t length;
-    fpos_t file_pos;
-  };
+        TAG data_type;
+        enum class ContainerType
+        {
+            List,
+            Compound
+        } container_type;
+        int32_t length;
+        fpos_t file_pos;
+    };
 
-  std::stack<NestingInfo> nesting_info_;
+    std::stack<NestingInfo> nesting_info_;
 };
 
 class Builder
@@ -188,74 +189,11 @@ private:
 
     bool HandleNesting(TAG t, StringView name);
 
-    template<typename T>
-    bool WriteTag(TAG type, StringView name, T value)
-    {
-        if (containers.size() >= 512)
-        {
-            assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
-            return false;
-        }
-        ContainerInfo& container = containers.top();
-        if (container.Type() == TAG::Compound)
-        {
-            NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
-            dataStore.namedTags[newTagIndex].As<T>() = value;
-            dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
-            if (IsContainer(type))
-            {
-                ContainerInfo newContainer {};
-                newContainer.named = true;
-                newContainer.Type() = type;
-                newContainer.namedContainer.tagIndex = newTagIndex;
-                if (type == TAG::Compound)
-                {
-                    dataStore.namedTags[newTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
-                    dataStore.compoundStorage.emplace_back();
-                }
-                containers.push(newContainer);
-            }
-        }
-        else if (container.Type() == TAG::List)
-        {
-            if (!name.empty())
-            {
-                assert(!"Writer: Name Error - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
-                return false;
-            }
-            // The list is not exclusively the same type as this tag
-            if (container.ElementType(dataStore) != type)
-            {
-                // If the list is currently empty, make it into a list of tags of this type
-                if (container.Count(dataStore) == 0)
-                {
-                    container.ElementType(dataStore) = type;
-                }
-                else
-                {
-                    assert(!"Writer: Type Error - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
-                    return false;
-                }
-            }
-            uint64_t poolIndex = dataStore.Pool<T>().size();
-            dataStore.Pool<T>().push_back(value);
-            container.IncrementCount(dataStore);
-            if (IsContainer(type))
-            {
-                ContainerInfo newContainer {};
-                newContainer.named = false;
-                newContainer.Type() = type;
-                newContainer.anonContainer.poolIndex = poolIndex;
-                if (type == TAG::Compound)
-                {
-                    dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ = dataStore.compoundStorage.size();
-                    dataStore.compoundStorage.emplace_back();
-                }
-                containers.push(newContainer);
-            }
-        }
-        return true;
-    }
+    template<typename T, typename Fn>
+    bool WriteTag(TAG type, StringView name, Fn valueGetter);
+
+    template<typename T, std::enable_if_t<!std::is_invocable_v<T>, bool> = true>
+    bool WriteTag(TAG type, StringView name, T value);
 };
 
 }
