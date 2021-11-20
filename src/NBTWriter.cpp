@@ -2,7 +2,8 @@
 
 #include "byteswapping.h"
 
-#include <cassert>
+#include "zlib.h"
+
 #include <iostream>
 
 namespace ImNBT
@@ -50,6 +51,42 @@ bool Writer::OutputBinaryFileUncompressed(StringView filepath)
   auto written = fwrite(data.data(), sizeof(uint8_t), data.size(), file);
   fclose(file);
   return written == data.size();
+}
+
+bool Writer::OutputBinaryFile(StringView filepath)
+{
+  FILE* file = fopen(filepath.data(), "wb");
+  if (!file)
+  {
+    return false;
+  }
+  std::vector<uint8_t> data;
+  if (!OutputBinary(data))
+  {
+    fclose(file);
+    return false;
+  }
+
+  z_stream zs {};
+  zs.avail_in = (uInt)data.size();
+  zs.next_in = (Bytef*)data.data();
+  
+  // "Add 16 to windowBits to write a simple gzip header and trailer around the compressed data instead of a zlib wrapper"
+  deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
+  auto deflatedDataSizeBound = deflateBound(&zs, data.size());
+  std::vector<uint8_t> deflatedData;
+  deflatedData.resize(deflatedDataSizeBound);
+  zs.avail_out = (uInt)deflatedDataSizeBound;
+  zs.next_out = (Bytef*)deflatedData.data();
+
+  deflate(&zs, Z_FINISH);
+  deflateEnd(&zs);
+
+  deflatedData.resize(zs.total_out);
+
+  auto written = fwrite(deflatedData.data(), sizeof(uint8_t), deflatedData.size(), file);
+  fclose(file);
+  return written == deflatedData.size();
 }
 
 bool Writer::OutputBinary(std::vector<uint8_t>& out)

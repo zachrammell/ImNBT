@@ -25,6 +25,14 @@ set(IMNBT_SOURCES
 add_library(ImNBT ${IMNBT_SOURCES} ${IMNBT_NATVIS})
 target_include_directories(ImNBT PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+option(IMNBT_USE_ZLIB "Use zlib for compressed NBT" ON)
+if (IMNBT_USE_ZLIB)
+  set(ZLIB_COMPAT ON)
+  add_subdirectory("external/zlib")
+  target_link_libraries(ImNBT PRIVATE zlibstatic)
+  target_include_directories(ImNBT PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/external/zlib")
+endif()
+
 # define the macro DEBUG if compiling in that configuration
 target_compile_definitions(ImNBT PRIVATE "$<$<CONFIG:DEBUG>:DEBUG>")
 

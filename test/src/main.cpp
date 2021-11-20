@@ -79,6 +79,7 @@ void BuilderTest()
     builder.Finalize();
 
     builder.OutputBinaryFileUncompressed("./test/output/bigtest_uncompr");
+    builder.OutputBinaryFile("./test/output/bigtest.nbt");
 }
 
 int main()
