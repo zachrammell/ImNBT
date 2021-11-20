@@ -43,7 +43,7 @@ int32_t swap_i32(int32_t x)
 BYTESWAP_DECORATION
 int64_t swap_i64(int64_t x)
 {
-    uint64_t const tmp = swap_u16(reinterpret_cast<uint64_t&>(x));
+    uint64_t const tmp = swap_u64(reinterpret_cast<uint64_t&>(x));
     return reinterpret_cast<int64_t const&>(tmp);
 }
 
@@ -58,7 +58,7 @@ BYTESWAP_DECORATION
 double swap_f64(double x)
 {
   uint64_t const tmp = swap_u64(reinterpret_cast<uint64_t&>(x));
-  return reinterpret_cast<float const&>(tmp);
+  return reinterpret_cast<double const&>(tmp);
 }
 
 #undef BYTESWAP_DECORATION

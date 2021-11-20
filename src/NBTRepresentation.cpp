@@ -3,9 +3,11 @@
 namespace ImNBT
 {
 
-bool IsContainer(TAG t)
+namespace Internal
 {
-    return t == TAG::List || t == TAG::Compound;
-}
 
-}
+bool IsContainer(TAG t) { return t == TAG::List || t == TAG::Compound; }
+
+} // namespace Internal
+
+} // namespace ImNBT

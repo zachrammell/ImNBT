@@ -8,573 +8,277 @@
 namespace ImNBT
 {
 
-Writer::Writer(StringView filepath) : outfile_{ nullptr }
+template<typename T, std::enable_if_t<(sizeof(T) <= sizeof(T*)), bool> = true>
+void Store(std::vector<uint8_t>& v, T data)
 {
-    outfile_ = fopen(filepath.data(), "wb");
-    assert(outfile_);
-    BeginRoot();
+    auto size = v.size();
+    v.resize(size + sizeof(T));
+    std::memcpy(v.data() + size, &data, sizeof(T));
 }
 
-Writer::~Writer()
+template<typename T, std::enable_if_t<(sizeof(T) > sizeof(T*)), bool> = true>
+void Store(std::vector<uint8_t>& v, T& data)
 {
-    EndCompound();
-    if (!nesting_info_.empty())
-    {
-        assert(!"Writer : Mismatched Compound Begin / End - A Compound Tag was not closed.\n");
-    }
-    fclose(outfile_);
+    auto size = v.size();
+    v.resize(size + sizeof(T));
+    std::memcpy(v.data() + size, &data, sizeof(T));
 }
 
-bool Writer::BeginCompound(StringView name)
+template<typename T>
+void StoreRange(std::vector<uint8_t>& v, T* data, size_t count)
 {
-    HandleNesting(name, TAG::Compound);
-    nesting_info_.emplace(NestingInfo{ TAG::End, NestingInfo::ContainerType::Compound, 0, 0 });
-    if (!name.empty())
-    {
-        WriteTag(TAG::Compound);
-        WriteStr(name);
-    }
-    return true;
-}
-
-void Writer::EndCompound()
-{
-    NestingInfo& nesting = nesting_info_.top();
-    if (nesting.container_type != NestingInfo::ContainerType::Compound)
-    {
-        assert(!"Writer: Mismatched Compound Begin/End - Compound Tag closed without being opened.\n");
-    }
-    if (nesting.length == 0)
-    {
-        assert(!"Writer: Empty Compound - Compound Tag with no values.\n");
-    }
-    nesting_info_.pop();
-    WriteTag(TAG::End);
-}
-
-bool Writer::BeginList(StringView name)
-{
-    HandleNesting(name, TAG::List);
-    //  NestingInfo& nesting = nesting_info_.top();
-    if (!name.empty())
-    {
-        WriteTag(TAG::List);
-        WriteStr(name);
-    }
-    // Store the file offset corresponding to the length, so that when ending the list we can write the length in here
-    fpos_t current_file_pos;
-    fgetpos(outfile_, &current_file_pos);
-    // The following two writes are not valid, they are simply filling space to be written in when the list is finished
-    WriteTag(TAG::INVALID);
-    WriteArrayLen(0xCCCCCCCC);
-    nesting_info_.emplace(NestingInfo{ TAG::End, NestingInfo::ContainerType::List, 0, current_file_pos });
-    return true;
-}
-
-void Writer::EndList()
-{
-    NestingInfo& nesting = nesting_info_.top();
-    if (nesting.container_type != NestingInfo::ContainerType::List)
-    {
-        assert(!"Writer: Mismatched List Begin/End - List Tag closed without being opened.\n");
-    }
-    if (nesting.length == 0)
-    {
-        nesting.data_type = TAG::End;
-    }
-
-    fpos_t current_file_pos;
-    fgetpos(outfile_, &current_file_pos);
-
-    fsetpos(outfile_, &(nesting.file_pos));
-    WriteTag(nesting.data_type);
-    WriteArrayLen(nesting.length);
-
-    fsetpos(outfile_, &current_file_pos);
-
-    nesting_info_.pop();
-}
-
-void Writer::WriteByte(int8_t b, StringView name)
-{
-    HandleNesting(name, TAG::Byte);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Byte);
-        WriteStr(name);
-    }
-    fwrite(&b, sizeof(b), 1, outfile_);
-}
-
-void Writer::WriteShort(int16_t s, StringView name)
-{
-    HandleNesting(name, TAG::Short);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Short);
-        WriteStr(name);
-    }
-    uint16_t const s_big_endian = swap_u16(s);
-    fwrite(&s_big_endian, sizeof(s_big_endian), 1, outfile_);
-}
-
-void Writer::WriteInt(int32_t i, StringView name)
-{
-    HandleNesting(name, TAG::Int);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Int);
-        WriteStr(name);
-    }
-    uint32_t const i_big_endian = swap_u32(i);
-    fwrite(&i_big_endian, sizeof(i_big_endian), 1, outfile_);
-}
-
-void Writer::WriteLong(int64_t l, StringView name)
-{
-    HandleNesting(name, TAG::Long);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Long);
-        WriteStr(name);
-    }
-    uint64_t const l_big_endian = swap_u64(l);
-    fwrite(&l_big_endian, sizeof(l_big_endian), 1, outfile_);
-}
-
-void Writer::WriteFloat(float f, StringView name)
-{
-    HandleNesting(name, TAG::Float);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Float);
-        WriteStr(name);
-    }
-    float const f_big_endian = swap_f32(f);
-    fwrite(&f_big_endian, sizeof(f_big_endian), 1, outfile_);
-}
-
-void Writer::WriteDouble(double d, StringView name)
-{
-    HandleNesting(name, TAG::Double);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Double);
-        WriteStr(name);
-    }
-    double const d_big_endian = swap_f64(d);
-    fwrite(&d_big_endian, sizeof(d_big_endian), 1, outfile_);
-}
-
-void Writer::WriteByteArray(int8_t const* array, int32_t length, StringView name)
-{
-    HandleNesting(name, TAG::Byte_Array);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Byte_Array);
-        WriteStr(name);
-    }
-    WriteArrayLen(length);
-    fwrite(&array, sizeof(array[0]), length, outfile_);
-}
-
-void Writer::WriteIntArray(int32_t const* array, int32_t count, StringView name)
-{
-    HandleNesting(name, TAG::Int_Array);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Int_Array);
-        WriteStr(name);
-    }
-    WriteArrayLen(count);
-    fwrite(&array, sizeof(array[0]), count, outfile_);
-}
-
-void Writer::WriteLongArray(int64_t const* array, int32_t count, StringView name)
-{
-    HandleNesting(name, TAG::Long_Array);
-    if (!name.empty())
-    {
-        WriteTag(TAG::Long_Array);
-        WriteStr(name);
-    }
-    WriteArrayLen(count);
-    fwrite(&array, sizeof(array[0]), count, outfile_);
-}
-
-void Writer::WriteString(StringView str, StringView name)
-{
-    HandleNesting(name, TAG::String);
-    // Tag and name information is only written for named tags
-    if (!name.empty())
-    {
-        WriteTag(TAG::String);
-        WriteStr(name);
-    }
-    WriteStr(str);
-}
-
-// Write specializations
-
-template<>
-void Writer::Write(int8_t value, StringView name)
-{
-    WriteByte(value, name);
-}
-template<>
-void Writer::Write(int16_t value, StringView name)
-{
-    WriteShort(value, name);
-}
-template<>
-void Writer::Write(int32_t value, StringView name)
-{
-    WriteInt(value, name);
-}
-template<>
-void Writer::Write(int64_t value, StringView name)
-{
-    WriteLong(value, name);
-}
-template<>
-void Writer::Write(float value, StringView name)
-{
-    WriteFloat(value, name);
-}
-template<>
-void Writer::Write(double value, StringView name)
-{
-    WriteDouble(value, name);
-}
-template<>
-void Writer::Write(StringView value, StringView name)
-{
-    WriteString(value, name);
+    auto size = v.size();
+    v.resize(size + sizeof(T) * count);
+    std::memcpy(v.data() + size, data, sizeof(T) * count);
 }
 
 // private implementations
 
-void Writer::WriteTag(TAG t)
+bool Writer::OutputBinaryFileUncompressed(StringView filepath)
 {
-    fwrite(&t, sizeof(t), 1, outfile_);
-}
-
-void Writer::WriteStr(StringView name)
-{
-    WriteStrLen(static_cast<int16_t>(name.size()));
-    fwrite(name.data(), sizeof(StringView::value_type), name.size(), outfile_);
-}
-
-void Writer::WriteStrLen(int16_t len)
-{
-    uint16_t const len_big_endian = swap_u16(len);
-    fwrite(&len_big_endian, sizeof(len_big_endian), 1, outfile_);
-}
-
-void Writer::WriteArrayLen(int32_t len)
-{
-    uint32_t const len_big_endian = swap_u32(len);
-    fwrite(&len_big_endian, sizeof(len_big_endian), 1, outfile_);
-}
-
-void Writer::BeginRoot()
-{
-    nesting_info_.emplace(NestingInfo{ TAG::End, NestingInfo::ContainerType::Compound, 0, 0 });
-    WriteTag(TAG::Compound);
-    WriteStr("root");
-}
-
-void Writer::HandleNesting(StringView name, TAG t)
-{
-    NestingInfo& nesting = nesting_info_.top();
-    if (nesting_info_.size() >= 512)
+    FILE* file = fopen(filepath.data(), "wb");
+    if (!file)
     {
-        assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
-    }
-    // Lists have strict requirements
-    if (nesting.container_type == NestingInfo::ContainerType::List)
-    {
-        if (!name.empty())
-        {
-            assert(!"Writer: Name Error - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
-        }
-        // The list is not exclusively the same type as this tag
-        if (nesting.data_type != t)
-        {
-            // If the list is currently empty, make it into a list of tags of this type
-            if (nesting.length == 0)
-            {
-                nesting.data_type = t;
-            }
-            else
-            {
-                assert(!"Writer: Type Error - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
-            }
-        }
-    }
-    else if (nesting.container_type == NestingInfo::ContainerType::Compound)
-    {
-        if (name.empty())
-        {
-            assert(!"Writer: Structure Error - Attempted to add an unnamed tag to a compound. All tags in a compound must be named.\n");
-        }
-    }
-    ++(nesting.length);
-}
-
-Builder::Builder()
-{
-    NamedDataTagIndex rootTagIndex = dataStore.AddNamedDataTag<TagPayload::Compound>(TAG::Compound, "root");
-
-    ContainerInfo rootContainer{};
-    rootContainer.named = true;
-    rootContainer.Type() = TAG::Compound;
-    rootContainer.namedContainer.tagIndex = rootTagIndex;
-
-    dataStore.namedTags[rootTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
-    dataStore.compoundStorage.emplace_back();
-
-    containers.push(rootContainer);
-}
-
-Builder::~Builder()
-{
-    EndCompound();
-}
-
-bool Builder::BeginCompound(StringView name)
-{
-    return WriteTag(TAG::Compound, name, TagPayload::Compound{});
-}
-
-void Builder::EndCompound()
-{
-    ContainerInfo& container = containers.top();
-    assert(container.Type() == TAG::Compound);
-    containers.pop();
-}
-
-bool Builder::BeginList(StringView name)
-{
-    return WriteTag(TAG::List, name, TagPayload::List{});
-}
-
-void Builder::EndList()
-{
-    ContainerInfo& container = containers.top();
-    assert(container.Type() == TAG::List);
-    containers.pop();
-}
-
-void Builder::WriteByte(int8_t b, StringView name)
-{
-    WriteTag(TAG::Byte, name, byte{ b });
-}
-
-void Builder::WriteShort(int16_t s, StringView name)
-{
-    WriteTag(TAG::Short, name, s);
-}
-
-void Builder::WriteInt(int32_t i, StringView name)
-{
-    WriteTag(TAG::Int, name, i);
-}
-
-void Builder::WriteLong(int64_t l, StringView name)
-{
-    WriteTag(TAG::Long, name, l);
-}
-
-void Builder::WriteFloat(float f, StringView name)
-{
-    WriteTag(TAG::Float, name, f);
-}
-
-void Builder::WriteDouble(double d, StringView name)
-{
-    WriteTag(TAG::Double, name, d);
-}
-
-void Builder::WriteByteArray(int8_t const* array, int32_t count, StringView name)
-{
-    WriteTag<TagPayload::ByteArray>(TAG::Byte_Array, name, [this, array, count]() {
-        auto bytePool = dataStore.Pool<byte>();
-        TagPayload::ByteArray byteArrayTag{ count, bytePool.size() };
-        bytePool.insert(bytePool.end(), array, array + count);
-        return byteArrayTag;
-    });
-}
-
-void Builder::WriteIntArray(int32_t const* array, int32_t count, StringView name)
-{
-    WriteTag<TagPayload::IntArray>(TAG::Int_Array, name, [this, array, count]() {
-        auto intPool = dataStore.Pool<int32_t>();
-        TagPayload::IntArray intArrayTag{ count, intPool.size() };
-        intPool.insert(intPool.end(), array, array + count);
-        return intArrayTag;
-    });
-}
-
-void Builder::WriteLongArray(int64_t const* array, int32_t count, StringView name)
-{
-    WriteTag<TagPayload::LongArray>(TAG::Long_Array, name, [this, array, count]() {
-        auto longPool = dataStore.Pool<int64_t>();
-        TagPayload::LongArray longArrayTag{ count, longPool.size() };
-        longPool.insert(longPool.end(), array, array + count);
-        return longArrayTag;
-    });
-}
-
-void Builder::WriteString(StringView str, StringView name)
-{
-    WriteTag<TagPayload::String>(TAG::String, name, [this, str]() {
-        auto stringPool = dataStore.Pool<char>();
-        TagPayload::String stringTag{ str.size(), stringPool.size() };
-        stringPool.insert(stringPool.end(), str.data(), str.data() + str.size());
-        return stringTag;
-    });
-}
-
-TAG& Builder::ContainerInfo::Type()
-{
-    return type;
-}
-
-TAG Builder::ContainerInfo::Type() const
-{
-    return type;
-}
-
-TAG& Builder::ContainerInfo::ElementType(DataStore& ds)
-{
-    // only Lists have single element types
-    assert(Type() == TAG::List);
-    if (named)
-    {
-        return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().elementType_;
-    }
-    return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].elementType_;
-}
-
-int32_t Builder::ContainerInfo::Count(DataStore& ds) const
-{
-    if (named)
-    {
-        switch (Type())
-        {
-            case TAG::List:
-                return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
-            case TAG::Compound:
-                return ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_].size();
-            default:
-                assert(!"Writer : Internal Type Error - This should never happen.");
-                return -1;
-        }
-    }
-    switch (Type())
-    {
-        case TAG::List:
-            return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].count_;
-        case TAG::Compound:
-            return ds.compoundStorage[ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_].size();
-        default:
-            assert(!"Writer : Internal Type Error - This should never happen.");
-            return -1;
-    }
-}
-
-void Builder::ContainerInfo::IncrementCount(DataStore& ds)
-{
-    // only lists can have their count incremented
-    assert(Type() == TAG::List);
-    ++ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
-}
-
-uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
-{
-    // only compounds can have storage
-    assert(Type() == TAG::Compound);
-    if (named)
-    {
-        return ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_;
-    }
-    return ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_;
-}
-
-template<typename T, typename Fn>
-bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
-{
-    if (containers.size() >= 512)
-    {
-        assert(!"Writer: Depth Error - Compound and List tags may not be nested beyond a depth of 512");
         return false;
     }
-    ContainerInfo& container = containers.top();
-    if (container.Type() == TAG::Compound)
+    std::vector<uint8_t> data;
+    if (!OutputBinary(data))
     {
-        NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
-        dataStore.namedTags[newTagIndex].As<T>() = valueGetter();
-        dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
-        if (IsContainer(type))
-        {
-            ContainerInfo newContainer{};
-            newContainer.named = true;
-            newContainer.Type() = type;
-            newContainer.namedContainer.tagIndex = newTagIndex;
-            if (type == TAG::Compound)
-            {
-                dataStore.namedTags[newTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
-                dataStore.compoundStorage.emplace_back();
-            }
-            containers.push(newContainer);
-        }
+        fclose(file);
+        return false;
     }
-    else if (container.Type() == TAG::List)
-    {
-        if (!name.empty())
-        {
-            assert(!"Writer: Name Error - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
-            return false;
-        }
-        // The list is not exclusively the same type as this tag
-        if (container.ElementType(dataStore) != type)
-        {
-            // If the list is currently empty, make it into a list of tags of this type
-            if (container.Count(dataStore) == 0)
-            {
-                container.ElementType(dataStore) = type;
-            }
-            else
-            {
-                assert(!"Writer: Type Error - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
-                return false;
-            }
-        }
-        uint64_t poolIndex = dataStore.Pool<T>().size();
-        dataStore.Pool<T>().push_back(valueGetter());
-        container.IncrementCount(dataStore);
-        if (IsContainer(type))
-        {
-            ContainerInfo newContainer{};
-            newContainer.named = false;
-            newContainer.Type() = type;
-            newContainer.anonContainer.poolIndex = poolIndex;
-            if (type == TAG::Compound)
-            {
-                dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ = dataStore.compoundStorage.size();
-                dataStore.compoundStorage.emplace_back();
-            }
-            containers.push(newContainer);
-        }
-    }
+    auto written = fwrite(data.data(), sizeof(uint8_t), data.size(), file);
+    fclose(file);
+    return written == data.size();
+}
+
+bool Writer::OutputBinary(std::vector<uint8_t>& out)
+{
+    if (!Finalized())
+        return false;
+    auto const& root = dataStore.namedTags[0];
+    OutputBinaryTag(out, root);
     return true;
 }
 
-template<typename T, std::enable_if_t<!std::is_invocable_v<T>, bool>>
-bool Builder::WriteTag(TAG type, StringView name, T value)
+void Writer::OutputBinaryTag(std::vector<uint8_t>& out, NamedDataTag const& tag)
 {
-    return WriteTag<T>(type, name, [&value]() -> T { return value; });
+    Store(out, tag.type);
+    OutputBinaryStr(out, tag.name);
+    OutputBinaryPayload(out, tag);
+}
+
+void Writer::OutputBinaryStr(std::vector<uint8_t>& out, StringView str)
+{
+    uint16_t const lenBigEndian = swap_u16(static_cast<int16_t>(str.length()));
+    Store(out, lenBigEndian);
+    StoreRange(out, str.data(), str.length());
+}
+
+void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
+{
+    switch (tag.type)
+    {
+        case TAG::Byte: {
+            Store(out, tag.As<byte>());
+        }
+        break;
+        case TAG::Short: {
+            Store(out, swap_i16(tag.As<int16_t>()));
+        }
+        break;
+        case TAG::Int: {
+            Store(out, swap_i32(tag.As<int32_t>()));
+        }
+        break;
+        case TAG::Long: {
+            Store(out, swap_i64(tag.As<int64_t>()));
+        }
+        break;
+        case TAG::Float: {
+            Store(out, swap_f32(tag.As<float>()));
+        }
+        break;
+        case TAG::Double: {
+            Store(out, swap_f64(tag.As<double>()));
+        }
+        break;
+        case TAG::Byte_Array: {
+            auto& byteArray = tag.As<TagPayload::ByteArray>();
+            Store(out, swap_i32(byteArray.count_));
+            StoreRange(out, dataStore.Pool<byte>().data() + byteArray.poolIndex_, byteArray.count_);
+        }
+        break;
+        case TAG::Int_Array: {
+            auto& intArray = tag.As<TagPayload::IntArray>();
+            auto intPool = dataStore.Pool<int32_t>().data() + intArray.poolIndex_;
+            Store(out, swap_i32(intArray.count_));
+            for (int i = 0; i < intArray.count_; ++i)
+            {
+                Store(out, swap_i32(intPool[i]));
+            }
+        }
+        break;
+        case TAG::Long_Array: {
+            auto& longArray = tag.As<TagPayload::LongArray>();
+            auto longPool = dataStore.Pool<int64_t>().data() + longArray.poolIndex_;
+            Store(out, swap_i32(longArray.count_));
+            for (int i = 0; i < longArray.count_; ++i)
+            {
+                Store(out, swap_i64(longPool[i]));
+            }
+        }
+        break;
+        case TAG::String: {
+            auto& string = tag.As<TagPayload::String>();
+            Store(out, swap_u16(string.length_));
+            StoreRange(out, dataStore.Pool<char>().data() + string.poolIndex_, string.length_);
+        }
+        break;
+        case TAG::List: {
+            auto& list = tag.As<TagPayload::List>();
+            if (list.count_ == 0)
+            {
+                Store(out, TAG::End);
+                Store(out, list.count_);
+                return;
+            }
+            Store(out, list.elementType_);
+            Store(out, swap_u32(list.count_));
+            switch (list.elementType_)
+            {
+                case TAG::Byte: {
+                    StoreRange(out, dataStore.Pool<byte>().data() + list.poolIndex_, list.count_);
+                }
+                break;
+                case TAG::Short: {
+                    auto const* shortPool = dataStore.Pool<int16_t>().data() + list.poolIndex_;
+                    out.reserve(out.size() + sizeof(int16_t) * list.count_);
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        Store(out, swap_i16(shortPool[i]));
+                    }
+                }
+                break;
+                case TAG::Int: {
+                    auto const* intPool = dataStore.Pool<int32_t>().data() + list.poolIndex_;
+                    out.reserve(out.size() + sizeof(int32_t) * list.count_);
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        Store(out, swap_i32(intPool[i]));
+                    }
+                }
+                break;
+                case TAG::Long: {
+                    auto const* longPool = dataStore.Pool<int64_t>().data() + list.poolIndex_;
+                    out.reserve(out.size() + sizeof(int64_t) * list.count_);
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        Store(out, swap_i64(longPool[i]));
+                    }
+                }
+                break;
+                case TAG::Float: {
+                    auto const* floatPool = dataStore.Pool<float>().data() + list.poolIndex_;
+                    out.reserve(out.size() + sizeof(float) * list.count_);
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        Store(out, swap_f32(floatPool[i]));
+                    }
+                }
+                break;
+                case TAG::Double: {
+                    auto const* doublePool = dataStore.Pool<double>().data() + list.poolIndex_;
+                    out.reserve(out.size() + sizeof(double) * list.count_);
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        Store(out, swap_f64(doublePool[i]));
+                    }
+                }
+                break;
+                case TAG::Byte_Array: {
+                    auto const* byteArrayPool = dataStore.Pool<TagPayload::ByteArray>().data() + list.poolIndex_;
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        auto const& byteArray = byteArrayPool[i];
+                        Store(out, swap_i32(byteArray.count_));
+                        StoreRange(out, dataStore.Pool<byte>().data() + byteArray.poolIndex_, byteArray.count_);
+                    }
+                }
+                break;
+                case TAG::Int_Array: {
+                    auto const* intArrayPool = dataStore.Pool<TagPayload::IntArray>().data() + list.poolIndex_;
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        auto const& intArray = intArrayPool[i];
+                        auto const* intPool = dataStore.Pool<int32_t>().data() + intArray.poolIndex_;
+                        Store(out, swap_i32(intArray.count_));
+                        for (int j = 0; j < intArray.count_; ++j)
+                        {
+                            Store(out, swap_i32(intPool[j]));
+                        }
+                    }
+                }
+                break;
+                case TAG::Long_Array: {
+                    auto const* longArrayPool = dataStore.Pool<TagPayload::LongArray>().data() + list.poolIndex_;
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        auto const& longArray = longArrayPool[i];
+                        auto const* longPool = dataStore.Pool<int64_t>().data() + longArray.poolIndex_;
+                        Store(out, swap_i32(longArray.count_));
+                        for (int j = 0; j < longArray.count_; ++j)
+                        {
+                            Store(out, swap_i64(longPool[j]));
+                        }
+                    }
+                }
+                break;
+                case TAG::String: {
+                    auto const* stringPool = dataStore.Pool<TagPayload::String>().data() + list.poolIndex_;
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        auto& string = stringPool[i];
+                        Store(out, swap_u16(string.length_));
+                        StoreRange(out, dataStore.Pool<char>().data() + string.poolIndex_, string.length_);
+                    }
+                }
+                break;
+                case TAG::List: {
+                    auto const* listPool = dataStore.Pool<TagPayload::List>().data() + list.poolIndex_;
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        DataTag sublistTag;
+                        sublistTag.type = TAG::List;
+                        sublistTag.Set(listPool[i]);
+                        OutputBinaryPayload(out, sublistTag);
+                    }
+                }
+                break;
+                case TAG::Compound: {
+                    auto const* compoundPool = dataStore.Pool<TagPayload::Compound>().data() + list.poolIndex_;
+                    for (int i = 0; i < list.count_; ++i)
+                    {
+                        DataTag subcompoundTag;
+                        subcompoundTag.type = TAG::Compound;
+                        subcompoundTag.Set(compoundPool[i]);
+                        OutputBinaryPayload(out, subcompoundTag);
+                    }
+                }
+                break;
+            }
+        }
+        break;
+        case TAG::Compound: {
+            auto& compound = tag.As<TagPayload::Compound>();
+            for (auto namedTagIndex : dataStore.compoundStorage[compound.storageIndex_])
+            {
+                OutputBinaryTag(out, dataStore.namedTags[namedTagIndex]);
+            }
+            Store(out, TAG::End);
+        }
+        break;
+    }
 }
 
 } // namespace ImNBT

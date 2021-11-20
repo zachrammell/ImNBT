@@ -10,3 +10,5 @@ CMakeSettings.json
 
 # Output
 build/
+
+test/output/

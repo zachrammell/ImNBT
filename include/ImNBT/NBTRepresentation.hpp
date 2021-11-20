@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <string_view>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -25,7 +24,7 @@ struct byte
     {
         return b;
     }
-    operator int8_t const &() const
+    operator int8_t const&() const
     {
         return b;
     }
@@ -49,8 +48,6 @@ enum class TAG : uint8_t
     INVALID = 0xCC
 };
 
-bool IsContainer(TAG t);
-
 struct TagPayload
 {
     struct ByteArray
@@ -70,7 +67,7 @@ struct TagPayload
     };
     struct String
     {
-        int16_t length_;
+        uint16_t length_;
         size_t poolIndex_;
     };
     struct List
@@ -86,6 +83,12 @@ struct TagPayload
 
     template<typename T>
     T& As()
+    {
+        return std::get<T>(data_);
+    }
+
+    template<typename T>
+    T const& As() const
     {
         return std::get<T>(data_);
     }
@@ -130,11 +133,15 @@ struct NamedDataTag : DataTag
     std::string_view name;
 };
 
+namespace Internal
+{
+bool IsContainer(TAG t);
+
 struct NamedDataTagIndex
 {
     uint64_t idx;
-    NamedDataTagIndex(uint64_t i) : idx(i) {}
     NamedDataTagIndex() = default;
+    NamedDataTagIndex(uint64_t i) : idx(i) {}
     operator uint64_t&()
     {
         return idx;
@@ -165,19 +172,21 @@ struct Pools
     }
 };
 
+}
+
 struct DataStore
-    : Pools<byte, int16_t, int32_t, int64_t, float, double, char,
-            TagPayload::ByteArray, TagPayload::IntArray, TagPayload::LongArray, TagPayload::String,
-            TagPayload::List, TagPayload::Compound>
+    : Internal::Pools<byte, int16_t, int32_t, int64_t, float, double, char,
+                      TagPayload::ByteArray, TagPayload::IntArray, TagPayload::LongArray, TagPayload::String,
+                      TagPayload::List, TagPayload::Compound>
 {
 
     // sets of indices into namedTags
-    std::vector<std::vector<NamedDataTagIndex>> compoundStorage;
+    std::vector<std::vector<Internal::NamedDataTagIndex>> compoundStorage;
 
     std::vector<NamedDataTag> namedTags;
 
     template<typename T>
-    NamedDataTagIndex AddNamedDataTag(TAG type, StringView name)
+    Internal::NamedDataTagIndex AddNamedDataTag(TAG type, StringView name)
     {
         NamedDataTag tag;
         tag.type = type;
@@ -188,7 +197,7 @@ struct DataStore
         tag.Set<T>();
         namedTags.emplace_back(tag);
 
-        return { namedTags.size() - 1 };
+        return namedTags.size() - 1;
     }
 };
 

@@ -9,12 +9,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(IMNBT_SOURCES
   "include/ImNBT/NBTReader.hpp"
   "include/ImNBT/NBTWriter.hpp"
+  "include/ImNBT/NBTBuilder.hpp"
+  "include/ImNBT/NBTRepresentation.hpp"
   "src/byteswapping.h"
   "src/NBTReader.cpp"
   "src/NBTWriter.cpp"
-  "include/ImNBT/NBTRepresentation.hpp"
+  "src/NBTBuilder.cpp"
   "src/NBTRepresentation.cpp"
- )
+  )
 
  set(IMNBT_NATVIS
   "natvis/imnbt.natvis"
