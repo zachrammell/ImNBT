@@ -4,11 +4,11 @@
 
 #include <cstdio>
 #include <optional>
-#include <string_view>
-#include <vector>
-#include <string>
 #include <stack>
+#include <string>
+#include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace ImNBT
 {
