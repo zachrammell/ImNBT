@@ -80,6 +80,8 @@ void BuilderTest()
 
     builder.OutputBinaryFileUncompressed("./test/output/bigtest_uncompr");
     builder.OutputBinaryFile("./test/output/bigtest.nbt");
+    builder.OutputTextFile("./test/output/bigtest.snbt");
+    builder.OutputTextFile("./test/output/bigtest_oneline.snbt", ImNBT::Writer::PrettyPrint::Disabled);
 }
 
 int main()

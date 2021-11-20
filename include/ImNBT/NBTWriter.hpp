@@ -15,6 +15,12 @@ namespace ImNBT
 class Writer : public Builder
 {
 public:
+  enum class PrettyPrint
+  {
+    Disabled,
+    Enabled,
+  };
+
   /*!
    * \brief This function is not implemented, only specialized! Specialize it on your own type to enable serialization.
    * It's a generic writer function. for the basic NBT types, it acts exactly like calling the explicit function.
@@ -26,11 +32,11 @@ public:
   template<typename T>
   void Write(T value, StringView name = "");
 
-  bool OutputTextFile(StringView filepath);
+  bool OutputTextFile(StringView filepath, PrettyPrint prettyPrint = PrettyPrint::Enabled);
   bool OutputBinaryFileUncompressed(StringView filepath);
   bool OutputBinaryFile(StringView filepath);
 
-  bool OutputString(std::string& out);
+  bool OutputString(std::string& out, PrettyPrint prettyPrint = PrettyPrint::Disabled);
   bool OutputBinary(std::vector<uint8_t>& out);
 
 private:
@@ -38,10 +44,15 @@ private:
   void OutputBinaryStr(std::vector<uint8_t>& out, StringView str);
   void OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag);
 
-  void WriteTag(TAG t);
-  void WriteStr(StringView name);
-  void WriteStrLen(int16_t len);
-  void WriteArrayLen(int32_t len);
+  void OutputTextTag(std::ostream& out, NamedDataTag const& tag);
+  void OutputTextStr(std::ostream& out, StringView str);
+  void OutputTextPayload(std::ostream& out, DataTag const& tag);
+
+  struct TextOutputState
+  {
+    int depth = 0;
+    PrettyPrint prettyPrint;
+  } textOutputState {};
 };
 
 } // namespace ImNBT

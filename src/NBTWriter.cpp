@@ -4,7 +4,8 @@
 
 #include "zlib.h"
 
-#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 namespace ImNBT
 {
@@ -33,7 +34,76 @@ void StoreRange(std::vector<uint8_t>& v, T* data, size_t count)
   std::memcpy(v.data() + size, data, sizeof(T) * count);
 }
 
+std::string EscapeQuotes(std::string_view inStr)
+{
+  std::string result;
+  size_t const length = inStr.length();
+  result.reserve(length + 10); // assume up to 10 quotes
+  for (size_t i = 0; i < length; ++i)
+  {
+    if (inStr[i] == '"')
+    {
+      result += R"(\")";
+    }
+    else
+    {
+      result += inStr[i];
+    }
+  }
+  return result;
+}
+
+static std::ostream& NewlineFn(std::ostream& out);
+static std::ostream& SpacingFn(std::ostream& out, int depth);
+
+class NewlineOp
+{
+  Writer::PrettyPrint prettyPrint;
+public:
+  NewlineOp(Writer::PrettyPrint prettyPrint) : prettyPrint(prettyPrint) {}
+  friend std::ostream& operator<<(std::ostream& out, NewlineOp const& op)
+  {
+    if (op.prettyPrint == Writer::PrettyPrint::Enabled)
+      return NewlineFn(out);
+    return out;
+  }
+};
+
+class SpacingOp
+{
+  Writer::PrettyPrint prettyPrint;
+  int depth;
+public:
+  SpacingOp(Writer::PrettyPrint prettyPrint, int depth) : prettyPrint(prettyPrint), depth(depth) {}
+  friend std::ostream& operator<<(std::ostream& out, SpacingOp const& op)
+  {
+    if (op.prettyPrint == Writer::PrettyPrint::Enabled)
+      return SpacingFn(out, op.depth);
+    return out;
+  }
+};
+
+#define Newline NewlineOp(textOutputState.prettyPrint)
+#define Spacing SpacingOp(textOutputState.prettyPrint, textOutputState.depth)
+
 // private implementations
+
+bool Writer::OutputTextFile(StringView filepath, PrettyPrint prettyPrint)
+{
+  FILE* file = fopen(filepath.data(), "wb");
+  if (!file)
+  {
+    return false;
+  }
+  std::string text;
+  if (!OutputString(text, prettyPrint))
+  {
+    return false;
+  }
+  auto written = fwrite(text.data(), sizeof(uint8_t), text.size(), file);
+  fclose(file);
+  return written == text.size();
+}
 
 bool Writer::OutputBinaryFileUncompressed(StringView filepath)
 {
@@ -67,17 +137,17 @@ bool Writer::OutputBinaryFile(StringView filepath)
     return false;
   }
 
-  z_stream zs {};
-  zs.avail_in = (uInt)data.size();
-  zs.next_in = (Bytef*)data.data();
-  
+  z_stream zs{};
+  zs.avail_in = (uInt) data.size();
+  zs.next_in = (Bytef*) data.data();
+
   // "Add 16 to windowBits to write a simple gzip header and trailer around the compressed data instead of a zlib wrapper"
   deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
   auto deflatedDataSizeBound = deflateBound(&zs, data.size());
   std::vector<uint8_t> deflatedData;
   deflatedData.resize(deflatedDataSizeBound);
-  zs.avail_out = (uInt)deflatedDataSizeBound;
-  zs.next_out = (Bytef*)deflatedData.data();
+  zs.avail_out = (uInt) deflatedDataSizeBound;
+  zs.next_out = (Bytef*) deflatedData.data();
 
   deflate(&zs, Z_FINISH);
   deflateEnd(&zs);
@@ -87,6 +157,19 @@ bool Writer::OutputBinaryFile(StringView filepath)
   auto written = fwrite(deflatedData.data(), sizeof(uint8_t), deflatedData.size(), file);
   fclose(file);
   return written == deflatedData.size();
+}
+
+bool Writer::OutputString(std::string& out, PrettyPrint prettyPrint)
+{
+  if (!Finalized())
+    return false;
+  textOutputState = {};
+  textOutputState.prettyPrint = prettyPrint;
+  auto const& root = dataStore.namedTags[0];
+  std::stringstream outStream(out);
+  OutputTextTag(outStream, root);
+  out = outStream.str();
+  return true;
 }
 
 bool Writer::OutputBinary(std::vector<uint8_t>& out)
@@ -316,6 +399,353 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
     }
     break;
   }
+}
+
+void Writer::OutputTextTag(std::ostream& out, NamedDataTag const& tag)
+{
+  // root tag likely nameless
+  if (!tag.name.empty())
+  {
+    OutputTextStr(out, tag.name);
+    out << ':';
+  }
+  OutputTextPayload(out, tag);
+}
+
+void Writer::OutputTextStr(std::ostream& out, StringView str)
+{
+  out << '"' << EscapeQuotes(str) << '"';
+}
+
+void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
+{
+  switch (tag.type)
+  {
+    case TAG::Byte: {
+      out << std::to_string(tag.As<byte>()) << 'b';
+    }
+    break;
+    case TAG::Short: {
+      out << tag.As<int16_t>() << 's';
+    }
+    break;
+    case TAG::Int: {
+      out << tag.As<int32_t>();
+    }
+    break;
+    case TAG::Long: {
+      out << tag.As<int64_t>() << 'l';
+    }
+    break;
+    case TAG::Float: {
+      out << std::setprecision(7);
+      out << tag.As<float>() << 'f';
+    }
+    break;
+    case TAG::Double: {
+      out << std::setprecision(15);
+      out << tag.As<double>();
+    }
+    break;
+    case TAG::Byte_Array: {
+      out << "[B;";
+      auto& byteArray = tag.As<TagPayload::ByteArray>();
+      auto bytePool = dataStore.Pool<byte>().data() + byteArray.poolIndex_;
+      for (int i = 0; i < byteArray.count_ - 1; ++i)
+      {
+        out << std::to_string(bytePool[i]) << "b,";
+      }
+      if (byteArray.count_)
+        out << bytePool[byteArray.count_ - 1] << "b]";
+    }
+    break;
+    case TAG::Int_Array: {
+      out << "[I;";
+      auto& intArray = tag.As<TagPayload::IntArray>();
+      auto intPool = dataStore.Pool<int32_t>().data() + intArray.poolIndex_;
+      for (int i = 0; i < intArray.count_ - 1; ++i)
+      {
+        out << intPool[i] << ',';
+      }
+      if (intArray.count_)
+        out << intPool[intArray.count_ - 1] << ']';
+    }
+    break;
+    case TAG::Long_Array: {
+      out << "[L;";
+      auto& longArray = tag.As<TagPayload::LongArray>();
+      auto longPool = dataStore.Pool<int64_t>().data() + longArray.poolIndex_;
+      for (int i = 0; i < longArray.count_ - 1; ++i)
+      {
+        out << longPool[i] << "l,";
+      }
+      if (longArray.count_)
+        out << longPool[longArray.count_ - 1] << "L]";
+    }
+    break;
+    case TAG::String: {
+      auto& string = tag.As<TagPayload::String>();
+      OutputTextStr(out, { dataStore.Pool<char>().data() + string.poolIndex_, string.length_ });
+    }
+    break;
+    case TAG::List: {
+      out << '[';
+      auto& list = tag.As<TagPayload::List>();
+      if (list.count_ == 0)
+      {
+        out << ']';
+        return;
+      }
+      switch (list.elementType_)
+      {
+        case TAG::Byte: {
+          auto const* bytePool = dataStore.Pool<byte>().data() + list.poolIndex_;
+          for (int i = 0; i < list.count_ - 1; ++i)
+          {
+            out << std::to_string(bytePool[i]) << "b,";
+          }
+          out << bytePool[list.count_ - 1] << 'b';
+        }
+        break;
+        case TAG::Short: {
+          auto const* shortPool = dataStore.Pool<int16_t>().data() + list.poolIndex_;
+          for (int i = 0; i < list.count_ - 1; ++i)
+          {
+            out << shortPool[i] << "s,";
+          }
+          out << shortPool[list.count_ - 1] << 's';
+        }
+        break;
+        case TAG::Int: {
+          auto const* intPool = dataStore.Pool<int32_t>().data() + list.poolIndex_;
+          for (int i = 0; i < list.count_ - 1; ++i)
+          {
+            out << intPool[i] << ',';
+          }
+          out << intPool[list.count_ - 1];
+        }
+        break;
+        case TAG::Long: {
+          auto const* longPool = dataStore.Pool<int64_t>().data() + list.poolIndex_;
+          for (int i = 0; i < list.count_ - 1; ++i)
+          {
+            out << longPool[i] << "l,";
+          }
+          out << longPool[list.count_ - 1] << 'l';
+        }
+        break;
+        case TAG::Float: {
+          auto const* floatPool = dataStore.Pool<float>().data() + list.poolIndex_;
+          out << std::setprecision(7);
+          for (int i = 0; i < list.count_ - 1; ++i)
+          {
+            out << floatPool[i] << "f,";
+          }
+          out << floatPool[list.count_ - 1] << 'f';
+        }
+        break;
+        case TAG::Double: {
+          auto const* doublePool = dataStore.Pool<double>().data() + list.poolIndex_;
+          out << std::setprecision(15);
+          for (int i = 0; i < list.count_ - 1; ++i)
+          {
+            out << doublePool[i] << ',';
+          }
+          out << doublePool[list.count_ - 1];
+        }
+        break;
+        case TAG::Byte_Array: {
+          auto const* byteArrayPool = dataStore.Pool<TagPayload::ByteArray>().data() + list.poolIndex_;
+          ++textOutputState.depth;
+          for (int i = 0; i < list.count_; ++i)
+          {
+            out << Spacing;
+            DataTag newTag;
+            newTag.type = list.elementType_;
+            newTag.Set(byteArrayPool[i]);
+            OutputTextPayload(out, newTag);
+            if (i != list.count_ - 1)
+              out << ',';
+          }
+          --textOutputState.depth;
+        }
+        break;
+        case TAG::Int_Array: {
+          auto const* intArrayPool = dataStore.Pool<TagPayload::IntArray>().data() + list.poolIndex_;
+          ++textOutputState.depth;
+          for (int i = 0; i < list.count_; ++i)
+          {
+            out << Spacing;
+            DataTag newTag;
+            newTag.type = list.elementType_;
+            newTag.Set(intArrayPool[i]);
+            OutputTextPayload(out, newTag);
+            if (i != list.count_ - 1)
+              out << ',';
+          }
+          --textOutputState.depth;
+        }
+        break;
+        case TAG::Long_Array: {
+          auto const* longArrayPool = dataStore.Pool<TagPayload::LongArray>().data() + list.poolIndex_;
+          ++textOutputState.depth;
+          for (int i = 0; i < list.count_; ++i)
+          {
+            out << Spacing;
+            DataTag newTag;
+            newTag.type = list.elementType_;
+            newTag.Set(longArrayPool[i]);
+            OutputTextPayload(out, newTag);
+            if (i != list.count_ - 1)
+              out << ',';
+          }
+          --textOutputState.depth;
+        }
+        break;
+        case TAG::List: {
+          auto const* listPool = dataStore.Pool<TagPayload::List>().data() + list.poolIndex_;
+          ++textOutputState.depth;
+          for (int i = 0; i < list.count_; ++i)
+          {
+            out << Spacing;
+            DataTag newTag;
+            newTag.type = list.elementType_;
+            newTag.Set(listPool[i]);
+            OutputTextPayload(out, newTag);
+            if (i != list.count_ - 1)
+              out << ',';
+          }
+          --textOutputState.depth;
+        }
+        break;
+        case TAG::Compound: {
+          auto const* compoundPool = dataStore.Pool<TagPayload::Compound>().data() + list.poolIndex_;
+          ++textOutputState.depth;
+          for (int i = 0; i < list.count_; ++i)
+          {
+            out << Newline << Spacing;
+            DataTag newTag;
+            newTag.type = list.elementType_;
+            newTag.Set(compoundPool[i]);
+            OutputTextPayload(out, newTag);
+            if (i != list.count_ - 1)
+              out << ',';
+          }
+          --textOutputState.depth;
+        }
+        break;
+      }
+      out << ']';
+    }
+    break;
+    case TAG::Compound: {
+      auto& compound = tag.As<TagPayload::Compound>();
+      out << '{' << Newline;
+      ++textOutputState.depth;
+      for (auto namedTagIndex : dataStore.compoundStorage[compound.storageIndex_])
+      {
+        out << Spacing;
+        OutputTextTag(out, dataStore.namedTags[namedTagIndex]);
+        if (namedTagIndex != dataStore.compoundStorage[compound.storageIndex_].back())
+          out << ',' << Newline;
+        else
+          out << Newline;
+      }
+      --textOutputState.depth;
+      out << Spacing << '}';
+    }
+    break;
+  }
+}
+
+std::ostream& NewlineFn(std::ostream& out)
+{
+  out << '\n';
+  return out;
+}
+
+std::ostream& SpacingFn(std::ostream& out, int depth)
+{
+  static char const* spacing[] = {
+    "",
+    "  ",
+    "    ",
+    "      ",
+    "        ",
+    "          ",
+    "            ",
+    "              ",
+    "                ",
+    "                  ",
+    "                    ",
+    "                      ",
+    "                        ",
+    "                          ",
+    "                            ",
+    "                              ",
+    "                                ",
+    "                                  ",
+    "                                    ",
+    "                                      ",
+    "                                        ",
+    "                                          ",
+    "                                            ",
+    "                                              ",
+    "                                                ",
+    "                                                  ",
+    "                                                    ",
+    "                                                      ",
+    "                                                        ",
+    "                                                          ",
+    "                                                            ",
+    "                                                              ",
+    "                                                                ",
+    "                                                                  ",
+    "                                                                    ",
+    "                                                                      ",
+    "                                                                        ",
+    "                                                                          ",
+    "                                                                            ",
+    "                                                                              ",
+    "                                                                                ",
+    "                                                                                  ",
+    "                                                                                    ",
+    "                                                                                      ",
+    "                                                                                        ",
+    "                                                                                          ",
+    "                                                                                            ",
+    "                                                                                              ",
+    "                                                                                                ",
+    "                                                                                                  ",
+    "                                                                                                    ",
+    "                                                                                                      ",
+    "                                                                                                        ",
+    "                                                                                                          ",
+    "                                                                                                            ",
+    "                                                                                                              ",
+    "                                                                                                                ",
+    "                                                                                                                  ",
+    "                                                                                                                    ",
+    "                                                                                                                      ",
+    "                                                                                                                        ",
+    "                                                                                                                          ",
+    "                                                                                                                            ",
+    "                                                                                                                              ",
+    "                                                                                                                                ",
+    "                                                                                                                                  ",
+    "                                                                                                                                    ",
+    "                                                                                                                                      ",
+    "                                                                                                                                        ",
+    "                                                                                                                                          ",
+    "                                                                                                                                            ",
+    "                                                                                                                                              ",
+    "                                                                                                                                                ",
+    "                                                                                                                                                  ",
+    "                                                                                                                                                    ",
+    "                                                                                                                                                      ",
+  };
+  out << spacing[depth];
+  return out;
 }
 
 } // namespace ImNBT
