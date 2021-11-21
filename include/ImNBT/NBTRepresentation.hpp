@@ -115,7 +115,7 @@ struct DataTag : TagPayload
 
 struct NamedDataTag : DataTag
 {
-  std::string_view name;
+  std::string name;
 };
 
 namespace Internal

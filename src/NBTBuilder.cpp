@@ -7,25 +7,6 @@ namespace ImNBT
 
 using namespace ImNBT::Internal;
 
-Builder::Builder()
-{
-  NamedDataTagIndex rootTagIndex =
-      dataStore.AddNamedDataTag<TagPayload::Compound>(TAG::Compound, "Level");
-
-  ContainerInfo rootContainer{};
-  rootContainer.named = true;
-  rootContainer.Type() = TAG::Compound;
-  rootContainer.namedContainer.tagIndex = rootTagIndex;
-
-  dataStore.namedTags[rootTagIndex].As<TagPayload::Compound>().storageIndex_ =
-      dataStore.compoundStorage.size();
-  dataStore.compoundStorage.emplace_back();
-
-  containers.push(rootContainer);
-}
-
-Builder::~Builder() { Finalize(); }
-
 bool Builder::BeginCompound(StringView name)
 {
   return WriteTag(TAG::Compound, name, TagPayload::Compound{});
@@ -80,20 +61,17 @@ void Builder::WriteDouble(double d, StringView name)
   WriteTag(TAG::Double, name, d);
 }
 
-void Builder::WriteByteArray(int8_t const* array, int32_t count,
-                             StringView name)
+void Builder::WriteByteArray(int8_t const* array, int32_t count, StringView name)
 {
-  WriteTag<TagPayload::ByteArray>(
-      TAG::Byte_Array, name, [this, array, count]() {
-        auto& bytePool = dataStore.Pool<byte>();
-        TagPayload::ByteArray byteArrayTag{ count, bytePool.size() };
-        bytePool.insert(bytePool.end(), array, array + count);
-        return byteArrayTag;
-      });
+  WriteTag<TagPayload::ByteArray>(TAG::Byte_Array, name, [this, array, count]() {
+    auto& bytePool = dataStore.Pool<byte>();
+    TagPayload::ByteArray byteArrayTag{ count, bytePool.size() };
+    bytePool.insert(bytePool.end(), array, array + count);
+    return byteArrayTag;
+  });
 }
 
-void Builder::WriteIntArray(int32_t const* array, int32_t count,
-                            StringView name)
+void Builder::WriteIntArray(int32_t const* array, int32_t count, StringView name)
 {
   WriteTag<TagPayload::IntArray>(TAG::Int_Array, name, [this, array, count]() {
     auto& intPool = dataStore.Pool<int32_t>();
@@ -103,26 +81,39 @@ void Builder::WriteIntArray(int32_t const* array, int32_t count,
   });
 }
 
-void Builder::WriteLongArray(int64_t const* array, int32_t count,
-                             StringView name)
+void Builder::WriteLongArray(int64_t const* array, int32_t count, StringView name)
 {
-  WriteTag<TagPayload::LongArray>(
-      TAG::Long_Array, name, [this, array, count]() {
-        auto& longPool = dataStore.Pool<int64_t>();
-        TagPayload::LongArray longArrayTag{ count, longPool.size() };
-        longPool.insert(longPool.end(), array, array + count);
-        return longArrayTag;
-      });
+  WriteTag<TagPayload::LongArray>(TAG::Long_Array, name, [this, array, count]() {
+    auto& longPool = dataStore.Pool<int64_t>();
+    TagPayload::LongArray longArrayTag{ count, longPool.size() };
+    longPool.insert(longPool.end(), array, array + count);
+    return longArrayTag;
+  });
 }
 
 void Builder::WriteString(StringView str, StringView name)
 {
   WriteTag<TagPayload::String>(TAG::String, name, [this, str]() {
     auto& stringPool = dataStore.Pool<char>();
-    TagPayload::String stringTag{ str.size(), stringPool.size() };
+    TagPayload::String stringTag{ static_cast<uint16_t>(str.size()), stringPool.size() };
     stringPool.insert(stringPool.end(), str.data(), str.data() + str.size());
     return stringTag;
   });
+}
+
+void Builder::Begin(StringView rootName)
+{
+  NamedDataTagIndex rootTagIndex = dataStore.AddNamedDataTag<TagPayload::Compound>(TAG::Compound, rootName);
+
+  ContainerInfo rootContainer{};
+  rootContainer.named = true;
+  rootContainer.Type() = TAG::Compound;
+  rootContainer.namedContainer.tagIndex = rootTagIndex;
+
+  dataStore.namedTags[rootTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+  dataStore.compoundStorage.emplace_back();
+
+  containers.push(rootContainer);
 }
 
 void Builder::Finalize()
@@ -155,9 +146,7 @@ TAG& Builder::ContainerInfo::ElementType(DataStore& ds)
   assert(Type() == TAG::List);
   if (named)
   {
-    return ds.namedTags[namedContainer.tagIndex]
-        .As<TagPayload::List>()
-        .elementType_;
+    return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().elementType_;
   }
   return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].elementType_;
 }
@@ -169,15 +158,9 @@ int32_t Builder::ContainerInfo::Count(DataStore& ds) const
     switch (Type())
     {
       case TAG::List:
-        return ds.namedTags[namedContainer.tagIndex]
-            .As<TagPayload::List>()
-            .count_;
+        return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
       case TAG::Compound:
-        return ds
-            .compoundStorage[ds.namedTags[namedContainer.tagIndex]
-                                 .As<TagPayload::Compound>()
-                                 .storageIndex_]
-            .size();
+        return ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_].size();
       default:
         assert(!"Builder : Internal Type Error - This should never happen.");
         return -1;
@@ -188,11 +171,7 @@ int32_t Builder::ContainerInfo::Count(DataStore& ds) const
     case TAG::List:
       return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].count_;
     case TAG::Compound:
-      return ds
-          .compoundStorage
-              [ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex]
-                   .storageIndex_]
-          .size();
+      return ds.compoundStorage[ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_].size();
     default:
       assert(!"Builder : Internal Type Error - This should never happen.");
       return -1;
@@ -219,9 +198,7 @@ uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
   assert(Type() == TAG::Compound);
   if (named)
   {
-    return ds.namedTags[namedContainer.tagIndex]
-        .As<TagPayload::Compound>()
-        .storageIndex_;
+    return ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_;
   }
   return ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_;
 }
@@ -232,14 +209,9 @@ size_t& Builder::ContainerInfo::PoolIndex(DataStore& ds)
   assert(Type() == TAG::List);
   if (named)
   {
-    return ds.namedTags[namedContainer.tagIndex]
-        .As<TagPayload::List>()
-        .poolIndex_;
+    return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().poolIndex_;
   }
-  else
-  {
-    return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].poolIndex_;
-  }
+  return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].poolIndex_;
 }
 
 template<typename T, typename Fn>
@@ -247,14 +219,12 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
 {
   if (containers.size() >= 512)
   {
-    assert(!"Builder : Depth Error - Compound and List tags may not be nested "
-            "beyond a depth of 512");
+    assert(!"Builder : Depth Error - Compound and List tags may not be nested beyond a depth of 512");
     return false;
   }
   if (containers.empty())
   {
-    assert(!"Builder : Write After Finalized - Attempted to write tags after "
-            "structure was finalized");
+    assert(!"Builder : Write After Finalized - Attempted to write tags after structure was finalized");
     return false;
   }
   ContainerInfo& container = containers.top();
@@ -262,8 +232,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
   {
     NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
     dataStore.namedTags[newTagIndex].As<T>() = valueGetter();
-    dataStore.compoundStorage[container.Storage(dataStore)].push_back(
-        newTagIndex);
+    dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
     if (IsContainer(type))
     {
       ContainerInfo newContainer{};
@@ -272,9 +241,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
       newContainer.namedContainer.tagIndex = newTagIndex;
       if (type == TAG::Compound)
       {
-        dataStore.namedTags[newTagIndex]
-            .As<TagPayload::Compound>()
-            .storageIndex_ = dataStore.compoundStorage.size();
+        dataStore.namedTags[newTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
         dataStore.compoundStorage.emplace_back();
       }
       containers.push(newContainer);
@@ -284,8 +251,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
   {
     if (!name.empty())
     {
-      assert(!"Builder : Name Error - Attempted to add a named tag to a List. "
-              "Lists cannot contain named tags.\n");
+      assert(!"Builder : Name Error - Attempted to add a named tag to a List. Lists cannot contain named tags.\n");
       return false;
     }
     // The list is not exclusively the same type as this tag
@@ -299,9 +265,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
       }
       else
       {
-        assert(!"Builder : Type Error - Attempted to add a tag to a list with "
-                "tags of different type. All tags in a list must be of the "
-                "same type.\n");
+        assert(!"Builder : Type Error - Attempted to add a tag to a list with tags of different type. All tags in a list must be of the same type.\n");
         return false;
       }
     }
@@ -320,8 +284,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
       newContainer.anonContainer.poolIndex = poolIndex;
       if (type == TAG::Compound)
       {
-        dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ =
-            dataStore.compoundStorage.size();
+        dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ = dataStore.compoundStorage.size();
         dataStore.compoundStorage.emplace_back();
       }
       containers.push(newContainer);

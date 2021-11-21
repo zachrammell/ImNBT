@@ -11,9 +11,6 @@ namespace ImNBT
 class Builder
 {
 public:
-  explicit Builder();
-  ~Builder();
-
   /*!
    * \brief begins a Compound of other tags.
    * This means that all writes until EndCompound() is called will be written
@@ -87,13 +84,12 @@ public:
   void WriteLong(int64_t l, StringView name = "");
   void WriteFloat(float f, StringView name = "");
   void WriteDouble(double d, StringView name = "");
-  void WriteByteArray(int8_t const* array, int32_t length,
-                      StringView name = "");
+  void WriteByteArray(int8_t const* array, int32_t length, StringView name = "");
   void WriteIntArray(int32_t const* array, int32_t count, StringView name = "");
-  void WriteLongArray(int64_t const* array, int32_t count,
-                      StringView name = "");
+  void WriteLongArray(int64_t const* array, int32_t count, StringView name = "");
   void WriteString(StringView str, StringView name = "");
 
+  void Begin(StringView rootName = "");
   void Finalize();
   bool Finalized() const;
 

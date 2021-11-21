@@ -1,13 +1,11 @@
 #pragma once
 
+#include "NBTBuilder.hpp"
 #include "NBTRepresentation.hpp"
 
-#include <cstdio>
+#include <cassert>
 #include <optional>
-#include <stack>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace ImNBT
@@ -16,15 +14,18 @@ namespace ImNBT
 template<typename T>
 using Optional = std::optional<T>;
 
-class Reader
+class Reader : Builder
 {
 public:
   /*!
    * \brief opens and begins reading data from an NBT file
    * \param filepath path to the NBT file to open and read from
    */
-  explicit Reader(StringView filepath);
-  ~Reader();
+  bool ImportFile(StringView filepath);
+
+  bool ImportTextFile(StringView filepath);
+  bool ImportBinaryFile(StringView filepath);
+  bool ImportBinaryFileUncompressed(StringView filepath);
 
   /*!
    * \brief Opens a compound for reading. This means that all reads until CloseCompound() is called will be read from this compound.
@@ -41,7 +42,7 @@ public:
    *    CloseCompound();
    *  }
    *
-   *  This would be the appropriate way to read the data documented in NBTWriter::BeginCompound()
+   *  This would be the appropriate way to read the data documented in BeginCompound()
    *
    * \param name name of compound to try and open
    * \return true if compound exists and can be read from, false otherwise
@@ -143,49 +144,59 @@ public:
   Optional<T> MaybeRead(StringView name = "");
 
 private:
-  std::unordered_map<std::string, DataTag> named_tags_;
-  std::string root_name;
-  std::string current_name_;
-  std::vector<char> string_pool_;
-  std::vector<uint8_t> byte_array_pool_;
-  size_t parsing_nesting_depth_ = 0;
-
-  struct NestingInfo
+  class MemoryStream
   {
-    TAG data_type;
-    enum class ContainerType
+    size_t position = 0;
+    std::vector<uint8_t> data;
+
+  public:
+    void SetContents(std::vector<uint8_t>&& inData)
     {
-      List,
-      Compound
-    } container_type;
-    int32_t length;
-    int32_t list_index;
-  };
+      data = std::move(inData);
+    }
 
-  std::stack<NestingInfo> nesting_info_;
+    template<typename T>
+    T Retrieve()
+    {
+      assert(position + sizeof(T) <= data.size());
+      T const* valueAddress = reinterpret_cast<T*>(data.data() + position);
+      position += sizeof(T);
+      return *valueAddress;
+    }
 
-  FILE* infile_;
+    template<typename T>
+    T const* RetrieveRangeView(size_t count)
+    {
+      assert(position + sizeof(T) * count <= data.size());
+      T const* valueAddress = reinterpret_cast<T*>(data.data() + position);
+      position += sizeof(T) * count;
+      return valueAddress;
+    }
 
-  /* READING HELPER FUNCTIONS */
+    void ResetPosition()
+    {
+      position = 0;
+    }
 
-  bool HandleNesting(StringView name, TAG t);
-  void EnterRoot();
+    void Clear()
+    {
+      ResetPosition();
+      data.clear();
+    }
+  } memoryStream;
 
-  /* PARSING FUNCTIONS */
+  bool ImportUncompressedFile(StringView filepath);
 
-  void ParseDataTree();
-  DataTag& ParseDataTag();
-  DataTag& ParseDataTagUnnamed(TAG type);
+  bool ParseTextStream();
+  bool ParseBinaryStream();
 
-  TAG ReadTag();
-  std::string ReadName();
+  TAG ParseBinaryNamedTag();
+  bool ParseBinaryPayload(TAG type, StringView name = "");
 
-  void AddToCurrentName(StringView name);
-  void AddIndexToCurrentName(int32_t index);
-  void PopLatestName();
-
-  int16_t ReadStrLen();
-  int32_t ReadArrayLen();
+  TAG RetrieveBinaryTag();
+  std::string RetrieveBinaryStr();
+  int16_t RetrieveBinaryStrLen();
+  int32_t RetrieveBinaryArrayLen();
 };
 
 } // namespace ImNBT

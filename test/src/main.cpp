@@ -5,59 +5,59 @@
 
 #include <array>
 
-void BuilderTest()
+void WriterTest()
 {
-    ImNBT::Writer builder;
+    ImNBT::Writer writer;
 
-    builder.WriteLong(9223372036854775807ll, "longTest");
-    builder.WriteShort(32767, "shortTest");
-    builder.WriteString(u8"HELLO WORLD THIS IS A TEST STRING ÅÄÖ!", "stringTest");
-    builder.WriteFloat(0.4982315f, "floatTest");
-    builder.WriteInt(2147483647, "intTest");
-    if (builder.BeginCompound("nested compound test"))
+    writer.WriteLong(9223372036854775807ll, "longTest");
+    writer.WriteShort(32767, "shortTest");
+    writer.WriteString(u8"HELLO WORLD THIS IS A TEST STRING ÅÄÖ!", "stringTest");
+    writer.WriteFloat(0.4982315f, "floatTest");
+    writer.WriteInt(2147483647, "intTest");
+    if (writer.BeginCompound("nested compound test"))
     {
-        if (builder.BeginCompound("ham"))
+        if (writer.BeginCompound("ham"))
         {
-            builder.WriteString("Hampus", "name");
-            builder.WriteFloat(0.75f, "value");
-            builder.EndCompound();
+            writer.WriteString("Hampus", "name");
+            writer.WriteFloat(0.75f, "value");
+            writer.EndCompound();
         }
-        if (builder.BeginCompound("egg"))
+        if (writer.BeginCompound("egg"))
         {
-            builder.WriteString("Eggbert", "name");
-            builder.WriteFloat(0.5f, "value");
-            builder.EndCompound();
+            writer.WriteString("Eggbert", "name");
+            writer.WriteFloat(0.5f, "value");
+            writer.EndCompound();
         }
-        builder.EndCompound();
+        writer.EndCompound();
     }
-    if (builder.BeginList("listTest (long)"))
+    if (writer.BeginList("listTest (long)"))
     {
         for (int i = 0; i < 5; ++i)
         {
-            builder.WriteLong(11ll + i);
+            writer.WriteLong(11ll + i);
         }
-        builder.EndList();
+        writer.EndList();
     }
-    if (builder.BeginList("listTest (compound)"))
+    if (writer.BeginList("listTest (compound)"))
     {
         for (int i = 0; i < 2; ++i)
         {
-            if (builder.BeginCompound())
+            if (writer.BeginCompound())
             {
                 std::string name("Compound tag #");
                 name += std::to_string(i);
-                builder.WriteString(name, "name");
-                builder.WriteLong(1264099775885ll, "created-on");
-                builder.EndCompound();
+                writer.WriteString(name, "name");
+                writer.WriteLong(1264099775885ll, "created-on");
+                writer.EndCompound();
             }
         }
-        builder.EndList();
+        writer.EndList();
     }
-    if (builder.BeginList("listTest (end)"))
+    if (writer.BeginList("listTest (end)"))
     {
-        builder.EndList();
+        writer.EndList();
     }
-    builder.WriteByte(127, "byteTest");
+    writer.WriteByte(127, "byteTest");
 
     {
         std::array<int8_t, 1000> values {};
@@ -65,30 +65,48 @@ void BuilderTest()
         {
             values[n] = (n * n * 255 + n * 7) % 100;
         }
-        builder.WriteByteArray(values.data(), values.size(), "byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))");
+        writer.WriteByteArray(values.data(), values.size(), "byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))");
     }
 
-    builder.WriteDouble(0.493128713218231, "doubleTest");
+    writer.WriteDouble(0.493128713218231, "doubleTest");
 
     std::array<int, 4> intArrayTest{ 66051, 67438087, 134810123, 202182159 };
-    builder.WriteIntArray(intArrayTest.data(), intArrayTest.size(), "intArrayTest");
+    writer.WriteIntArray(intArrayTest.data(), intArrayTest.size(), "intArrayTest");
 
     std::array<int64_t, 2> longArrayTest{ 1003370060459195070, -2401053089480183795 };
-    builder.WriteLongArray(longArrayTest.data(), longArrayTest.size(), "longArrayTest");
+    writer.WriteLongArray(longArrayTest.data(), longArrayTest.size(), "longArrayTest");
 
-    builder.Finalize();
+    writer.Finalize();
 
-    builder.OutputBinaryFileUncompressed("./test/output/bigtest_uncompr");
-    builder.OutputBinaryFile("./test/output/bigtest.nbt");
-    builder.OutputTextFile("./test/output/bigtest.snbt");
-    builder.OutputTextFile("./test/output/bigtest_oneline.snbt", ImNBT::Writer::PrettyPrint::Disabled);
+    writer.ExportBinaryFileUncompressed("./test/output/bigtest_uncompr");
+    writer.ExportBinaryFile("./test/output/bigtest.nbt");
+    writer.ExportTextFile("./test/output/bigtest.snbt");
+    writer.ExportTextFile("./test/output/bigtest_oneline.snbt", ImNBT::Writer::PrettyPrint::Disabled);
+}
+
+void ReaderTest()
+{
+  ImNBT::Reader reader;
+
+  if (!reader.ImportBinaryFileUncompressed("./test/data/bigtest_uncompr"))
+  {
+    assert(!"Uncompressed Binary Import Failed");
+  }
+  if (!reader.ImportBinaryFile("./test/output/bigtest.nbt"))
+  {
+    assert(!"Binary Import Failed");
+  }
+  if (!reader.ImportTextFile("./test/output/bigtest.snbt"))
+  {
+    assert(!"Text Import Failed");
+  }
 }
 
 int main()
 {
-    ImNBT::Reader reader("./test/data/bigtest_uncompr");
+  //WriterTest();
 
-    BuilderTest();
+  ReaderTest();
 
-    return 0;
+  return 0;
 }

@@ -13,7 +13,7 @@ namespace ImNBT
 template<typename T, std::enable_if_t<(sizeof(T) <= sizeof(T*)), bool> = true>
 void Store(std::vector<uint8_t>& v, T data)
 {
-  auto size = v.size();
+  auto const size = v.size();
   v.resize(size + sizeof(T));
   std::memcpy(v.data() + size, &data, sizeof(T));
 }
@@ -21,7 +21,7 @@ void Store(std::vector<uint8_t>& v, T data)
 template<typename T, std::enable_if_t<(sizeof(T) > sizeof(T*)), bool> = true>
 void Store(std::vector<uint8_t>& v, T& data)
 {
-  auto size = v.size();
+  auto const size = v.size();
   v.resize(size + sizeof(T));
   std::memcpy(v.data() + size, &data, sizeof(T));
 }
@@ -29,7 +29,7 @@ void Store(std::vector<uint8_t>& v, T& data)
 template<typename T>
 void StoreRange(std::vector<uint8_t>& v, T* data, size_t count)
 {
-  auto size = v.size();
+  auto const size = v.size();
   v.resize(size + sizeof(T) * count);
   std::memcpy(v.data() + size, data, sizeof(T) * count);
 }
@@ -88,78 +88,97 @@ public:
 
 // private implementations
 
-bool Writer::OutputTextFile(StringView filepath, PrettyPrint prettyPrint)
+Writer::Writer()
 {
+  Begin();
+}
+
+Writer::~Writer()
+{
+  Finalize();
+}
+
+bool Writer::ExportTextFile(StringView filepath, PrettyPrint prettyPrint)
+{
+  if (!Finalized())
+    return false;
+
   FILE* file = fopen(filepath.data(), "wb");
   if (!file)
   {
     return false;
   }
   std::string text;
-  if (!OutputString(text, prettyPrint))
+  if (!ExportString(text, prettyPrint))
   {
     return false;
   }
-  auto written = fwrite(text.data(), sizeof(uint8_t), text.size(), file);
+  auto const written = fwrite(text.data(), sizeof(uint8_t), text.size(), file);
   fclose(file);
   return written == text.size();
 }
 
-bool Writer::OutputBinaryFileUncompressed(StringView filepath)
+bool Writer::ExportBinaryFileUncompressed(StringView filepath)
 {
+  if (!Finalized())
+    return false;
+
   FILE* file = fopen(filepath.data(), "wb");
   if (!file)
   {
     return false;
   }
   std::vector<uint8_t> data;
-  if (!OutputBinary(data))
+  if (!ExportBinary(data))
   {
     fclose(file);
     return false;
   }
-  auto written = fwrite(data.data(), sizeof(uint8_t), data.size(), file);
+  auto const written = fwrite(data.data(), sizeof(uint8_t), data.size(), file);
   fclose(file);
   return written == data.size();
 }
 
-bool Writer::OutputBinaryFile(StringView filepath)
+bool Writer::ExportBinaryFile(StringView filepath)
 {
+  if (!Finalized())
+    return false;
+
   FILE* file = fopen(filepath.data(), "wb");
   if (!file)
   {
     return false;
   }
   std::vector<uint8_t> data;
-  if (!OutputBinary(data))
+  if (!ExportBinary(data))
   {
     fclose(file);
     return false;
   }
 
   z_stream zs{};
-  zs.avail_in = (uInt) data.size();
-  zs.next_in = (Bytef*) data.data();
+  zs.avail_in = static_cast<uint32_t>(data.size());
+  zs.next_in = data.data();
 
   // "Add 16 to windowBits to write a simple gzip header and trailer around the compressed data instead of a zlib wrapper"
   deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
-  auto deflatedDataSizeBound = deflateBound(&zs, data.size());
+  auto const deflatedDataSizeBound = deflateBound(&zs, static_cast<unsigned long>(data.size()));
   std::vector<uint8_t> deflatedData;
   deflatedData.resize(deflatedDataSizeBound);
-  zs.avail_out = (uInt) deflatedDataSizeBound;
-  zs.next_out = (Bytef*) deflatedData.data();
+  zs.avail_out = static_cast<uint32_t>(deflatedDataSizeBound);
+  zs.next_out = deflatedData.data();
 
   deflate(&zs, Z_FINISH);
   deflateEnd(&zs);
 
   deflatedData.resize(zs.total_out);
 
-  auto written = fwrite(deflatedData.data(), sizeof(uint8_t), deflatedData.size(), file);
+  auto const written = fwrite(deflatedData.data(), sizeof(uint8_t), deflatedData.size(), file);
   fclose(file);
   return written == deflatedData.size();
 }
 
-bool Writer::OutputString(std::string& out, PrettyPrint prettyPrint)
+bool Writer::ExportString(std::string& out, PrettyPrint prettyPrint)
 {
   if (!Finalized())
     return false;
@@ -172,7 +191,7 @@ bool Writer::OutputString(std::string& out, PrettyPrint prettyPrint)
   return true;
 }
 
-bool Writer::OutputBinary(std::vector<uint8_t>& out)
+bool Writer::ExportBinary(std::vector<uint8_t>& out)
 {
   if (!Finalized())
     return false;
