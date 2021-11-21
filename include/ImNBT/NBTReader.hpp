@@ -106,6 +106,8 @@ public:
   float ReadFloat(StringView name = "");
   double ReadDouble(StringView name = "");
   std::vector<int8_t> ReadByteArray(StringView name = "");
+  std::vector<int32_t> ReadIntArray(StringView name = "");
+  std::vector<int64_t> ReadLongArray(StringView name = "");
   StringView ReadString(StringView name = "");
 
   Optional<int8_t> MaybeReadByte(StringView name = "");
@@ -195,8 +197,14 @@ private:
 
   TAG RetrieveBinaryTag();
   std::string RetrieveBinaryStr();
-  int16_t RetrieveBinaryStrLen();
   int32_t RetrieveBinaryArrayLen();
+
+  bool HandleNesting(StringView name, TAG t);
+
+  bool OpenContainer(TAG t, StringView name);
+
+  template<typename T>
+  T& ReadValue(TAG t, StringView name);
 };
 
 } // namespace ImNBT

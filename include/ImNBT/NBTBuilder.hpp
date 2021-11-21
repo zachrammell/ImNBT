@@ -100,6 +100,7 @@ protected:
   {
     bool named;
     TAG type;
+    int32_t currentIndex;
     struct NamedContainer
     {
       Internal::NamedDataTagIndex tagIndex;
