@@ -117,6 +117,8 @@ public:
   Optional<float> MaybeReadFloat(StringView name = "");
   Optional<double> MaybeReadDouble(StringView name = "");
   Optional<std::vector<int8_t>> MaybeReadByteArray(StringView name = "");
+  Optional<std::vector<int32_t>> MaybeReadIntArray(StringView name = "");
+  Optional<std::vector<int64_t>> MaybeReadLongArray(StringView name = "");
   Optional<StringView> MaybeReadString(StringView name = "");
 
   /*!
@@ -209,6 +211,9 @@ private:
 
   template<typename T>
   T& ReadValue(TAG t, StringView name);
+
+  template<typename T>
+  Optional<T> MaybeReadValue(TAG t, StringView name);
 };
 
 } // namespace ImNBT

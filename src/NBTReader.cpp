@@ -188,199 +188,107 @@ StringView Reader::ReadString(StringView name)
   };
 }
 
-//Optional<int8_t> Reader::MaybeReadByte(StringView name)
-//{
-//  HandleNesting(name, TAG::Byte);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Byte);
-//    return std::make_optional(found->second.As<byte>());
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<int16_t> Reader::MaybeReadShort(StringView name)
-//{
-//  HandleNesting(name, TAG::Short);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Short);
-//    return std::make_optional(found->second.As<int16_t>());
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<int32_t> Reader::MaybeReadInt(StringView name)
-//{
-//  HandleNesting(name, TAG::Int);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Int);
-//    return std::make_optional(found->second.As<int32_t>());
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<int64_t> Reader::MaybeReadLong(StringView name)
-//{
-//  HandleNesting(name, TAG::Long);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Long);
-//    return std::make_optional(found->second.As<int64_t>());
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<float> Reader::MaybeReadFloat(StringView name)
-//{
-//  HandleNesting(name, TAG::Float);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Float);
-//    return std::make_optional(found->second.As<float>());
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<double> Reader::MaybeReadDouble(StringView name)
-//{
-//  HandleNesting(name, TAG::Double);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Double);
-//    return std::make_optional(found->second.As<double>());
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
-//{
-//  HandleNesting(name, TAG::Byte_Array);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::Byte_Array);
-//    std::vector<int8_t> ret{
-//      byte_array_pool_.data() +
-//          found->second.As<TagPayload::ByteArray>().poolIndex_,
-//      byte_array_pool_.data() +
-//          found->second.As<TagPayload::ByteArray>().count_
-//    };
-//    return std::make_optional(ret);
-//  }
-//  return std::nullopt;
-//}
-//
-//Optional<StringView> Reader::MaybeReadString(StringView name)
-//{
-//  HandleNesting(name, TAG::String);
-//  auto const found = named_tags_.find(current_name_);
-//  PopLatestName();
-//  if (found != named_tags_.end())
-//  {
-//    assert(found->second.type == TAG::String);
-//    return std::make_optional<StringView>(
-//        string_pool_.data() + found->second.As<TagPayload::String>().poolIndex_,
-//        static_cast<size_t>(found->second.As<TagPayload::String>().length_));
-//  }
-//  return std::nullopt;
-//}
+Optional<int8_t> Reader::MaybeReadByte(StringView name)
+{
+  if (!HandleNesting(name, TAG::Byte))
+    return std::nullopt;
+  return MaybeReadValue<byte>(TAG::Byte, name);
+}
 
-template<>
-int8_t Reader::Read(StringView name)
+Optional<int16_t> Reader::MaybeReadShort(StringView name)
 {
-  return ReadByte(name);
+  if (!HandleNesting(name, TAG::Short))
+    return std::nullopt;
+  return MaybeReadValue<int16_t>(TAG::Short, name);
 }
-template<>
-int16_t Reader::Read(StringView name)
+
+Optional<int32_t> Reader::MaybeReadInt(StringView name)
 {
-  return ReadShort(name);
+  if (!HandleNesting(name, TAG::Int))
+    return std::nullopt;
+  return MaybeReadValue<int32_t>(TAG::Int, name);
 }
-template<>
-int32_t Reader::Read(StringView name)
+
+Optional<int64_t> Reader::MaybeReadLong(StringView name)
 {
-  return ReadInt(name);
+  if (!HandleNesting(name, TAG::Long))
+    return std::nullopt;
+  return MaybeReadValue<int64_t>(TAG::Long, name);
 }
-template<>
-int64_t Reader::Read(StringView name)
+
+Optional<float> Reader::MaybeReadFloat(StringView name)
 {
-  return ReadLong(name);
+  if (!HandleNesting(name, TAG::Float))
+    return std::nullopt;
+  return MaybeReadValue<float>(TAG::Float, name);
 }
-template<>
-float Reader::Read(StringView name)
+
+Optional<double> Reader::MaybeReadDouble(StringView name)
 {
-  return ReadFloat(name);
+  if (!HandleNesting(name, TAG::Double))
+    return std::nullopt;
+  return MaybeReadValue<double>(TAG::Double, name);
 }
-template<>
-double Reader::Read(StringView name)
+
+Optional<std::vector<int8_t>> Reader::MaybeReadByteArray(StringView name)
 {
-  return ReadDouble(name);
+  if (!HandleNesting(name, TAG::Byte_Array))
+    return std::nullopt;
+  Optional<TagPayload::ByteArray> byteArray = MaybeReadValue<TagPayload::ByteArray>(TAG::Byte_Array, name);
+  if (!byteArray)
+    return std::nullopt;
+  auto* bytePool = dataStore.Pool<byte>().data() + byteArray->poolIndex_;
+  std::vector<int8_t> ret{
+    bytePool,
+    bytePool + byteArray->count_
+  };
+  return std::make_optional(ret);
 }
-template<>
-std::vector<int8_t> Reader::Read(StringView name)
+
+Optional<std::vector<int32_t>> Reader::MaybeReadIntArray(StringView name)
 {
-  return ReadByteArray(name);
+  if (!HandleNesting(name, TAG::Int_Array))
+    return std::nullopt;
+  Optional<TagPayload::IntArray> intArray = MaybeReadValue<TagPayload::IntArray>(TAG::Int_Array, name);
+  if (!intArray)
+    return std::nullopt;
+  auto* intPool = dataStore.Pool<int32_t>().data() + intArray->poolIndex_;
+  std::vector<int32_t> ret{
+    intPool,
+    intPool + intArray->count_
+  };
+  std::transform(ret.begin(), ret.end(), ret.begin(), swap_i32);
+  return std::make_optional(ret);
 }
-template<>
-std::vector<int32_t> Reader::Read(StringView name)
+
+Optional<std::vector<int64_t>> Reader::MaybeReadLongArray(StringView name)
 {
-  return ReadIntArray(name);
+  if (!HandleNesting(name, TAG::Long_Array))
+    return std::nullopt;
+  Optional<TagPayload::LongArray> longArray = MaybeReadValue<TagPayload::LongArray>(TAG::Long_Array, name);
+  if (!longArray)
+    return std::nullopt;
+  auto* longPool = dataStore.Pool<int64_t>().data() + longArray->poolIndex_;
+  std::vector<int64_t> ret{
+    longPool,
+    longPool + longArray->count_
+  };
+  std::transform(ret.begin(), ret.end(), ret.begin(), swap_i64);
+  return std::make_optional(ret);
 }
-template<>
-std::vector<int64_t> Reader::Read(StringView name)
+
+Optional<StringView> Reader::MaybeReadString(StringView name)
 {
-  return ReadLongArray(name);
+  if (!HandleNesting(name, TAG::String))
+    return std::nullopt;
+  Optional<TagPayload::String> string = MaybeReadValue<TagPayload::String>(TAG::String, name);
+  if (!string)
+    return std::nullopt;
+  return StringView{
+    dataStore.Pool<char>().data() + string->poolIndex_,
+    static_cast<size_t>(string->length_)
+  };
 }
-template<>
-StringView Reader::Read(StringView name)
-{
-  return ReadString(name);
-}
-//
-//template<>
-//Optional<int8_t> Reader::MaybeRead(StringView name)
-//{
-//  return MaybeReadByte(name);
-//}
-//template<>
-//Optional<int16_t> Reader::MaybeRead(StringView name)
-//{
-//  return MaybeReadShort(name);
-//}
-//template<>
-//Optional<int32_t> Reader::MaybeRead(StringView name)
-//{
-//  return MaybeReadInt(name);
-//}
-//template<>
-//Optional<int64_t> Reader::MaybeRead(StringView name)
-//{
-//  return MaybeReadLong(name);
-//}
-//template<>
-//Optional<float> Reader::MaybeRead(StringView name)
-//{
-//  return MaybeReadFloat(name);
-//}
-//template<>
-//Optional<double> Reader::MaybeRead(StringView name)
-//{
-//  return MaybeReadDouble(name);
-//}
 
 void Reader::Clear()
 {
@@ -632,6 +540,19 @@ bool Reader::OpenContainer(TAG t, StringView name)
 template<typename T>
 T& Reader::ReadValue(TAG t, StringView name)
 {
+  auto v = MaybeReadValue<T>(t, name);
+  if (!v.has_value())
+  {
+    assert(!"Reader Error: Value with given name not present");
+    // undefined real bad behavior on purpose
+    return *static_cast<T*>(nullptr);
+  }
+  return v.value();
+}
+
+template<typename T>
+Optional<T> Reader::MaybeReadValue(TAG t, StringView name)
+{
   ContainerInfo& container = containers.top();
   if (container.type == TAG::List)
   {
@@ -650,8 +571,109 @@ T& Reader::ReadValue(TAG t, StringView name)
       }
     }
   }
-  assert(!"Internal Error - This should never happen");
-  return *static_cast<T*>(nullptr);
+  return std::nullopt;
+}
+
+template<>
+int8_t Reader::Read(StringView name)
+{
+  return ReadByte(name);
+}
+template<>
+int16_t Reader::Read(StringView name)
+{
+  return ReadShort(name);
+}
+template<>
+int32_t Reader::Read(StringView name)
+{
+  return ReadInt(name);
+}
+template<>
+int64_t Reader::Read(StringView name)
+{
+  return ReadLong(name);
+}
+template<>
+float Reader::Read(StringView name)
+{
+  return ReadFloat(name);
+}
+template<>
+double Reader::Read(StringView name)
+{
+  return ReadDouble(name);
+}
+template<>
+std::vector<int8_t> Reader::Read(StringView name)
+{
+  return ReadByteArray(name);
+}
+template<>
+std::vector<int32_t> Reader::Read(StringView name)
+{
+  return ReadIntArray(name);
+}
+template<>
+std::vector<int64_t> Reader::Read(StringView name)
+{
+  return ReadLongArray(name);
+}
+template<>
+StringView Reader::Read(StringView name)
+{
+  return ReadString(name);
+}
+
+template<>
+Optional<int8_t> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadByte(name);
+}
+template<>
+Optional<int16_t> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadShort(name);
+}
+template<>
+Optional<int32_t> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadInt(name);
+}
+template<>
+Optional<int64_t> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadLong(name);
+}
+template<>
+Optional<float> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadFloat(name);
+}
+template<>
+Optional<double> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadDouble(name);
+}
+template<>
+Optional<std::vector<int8_t>> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadByteArray(name);
+}
+template<>
+Optional<std::vector<int32_t>> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadIntArray(name);
+}
+template<>
+Optional<std::vector<int64_t>> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadLongArray(name);
+}
+template<>
+Optional<StringView> Reader::MaybeRead(StringView name)
+{
+  return MaybeReadString(name);
 }
 
 } // namespace ImNBT
