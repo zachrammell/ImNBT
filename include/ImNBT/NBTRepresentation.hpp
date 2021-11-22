@@ -146,6 +146,11 @@ struct Pools
   {
     return std::get<std::vector<T>>(pools);
   }
+
+  void Clear()
+  {
+    (std::get<std::vector<Ts>>(pools).clear(), ...);
+  }
 };
 
 } // namespace Internal
@@ -175,6 +180,16 @@ struct DataStore
     namedTags.emplace_back(tag);
 
     return namedTags.size() - 1;
+  }
+
+  void Clear()
+  {
+    compoundStorage.clear();
+    namedTags.clear();
+    Internal::Pools<byte, int16_t, int32_t, int64_t, float, double, char,
+                    TagPayload::ByteArray, TagPayload::IntArray,
+                    TagPayload::LongArray, TagPayload::String,
+                    TagPayload::List, TagPayload::Compound>::Clear();
   }
 };
 

@@ -154,6 +154,7 @@ private:
   public:
     void SetContents(std::vector<uint8_t>&& inData)
     {
+      Clear();
       data = std::move(inData);
     }
 
@@ -187,6 +188,9 @@ private:
     }
   } memoryStream;
 
+  void Clear();
+
+  bool ImportCompressedFile(StringView filepath);
   bool ImportUncompressedFile(StringView filepath);
 
   bool ParseTextStream();

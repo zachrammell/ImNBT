@@ -4,6 +4,7 @@
 
 #include "zlib.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <iostream>
@@ -27,36 +28,18 @@ bool Reader::ImportTextFile(StringView filepath)
   if (!ImportUncompressedFile(filepath))
     return false;
 
+  Clear();
+
   return ParseTextStream();
 }
 
 bool Reader::ImportBinaryFile(StringView filepath)
 {
-  gzFile infile = gzopen(filepath.data(), "rb");
-  if (!infile) return false;
+  if (!ImportCompressedFile(filepath))
+    return false;
 
-  std::vector<uint8_t> fileData;
-  std::array<uint8_t, 8192> inputBuffer{};
-  bool reading = true;
-  while (reading)
-  {
-    size_t const bytesRead = gzfread(inputBuffer.data(), sizeof(uint8_t), inputBuffer.size(), infile);
-    if (bytesRead < inputBuffer.size())
-    {
-      if (gzeof(infile))
-      {
-        reading = false;
-      }
-      int err;
-      gzerror(infile, &err);
-      if (err)
-        return false;
-    }
-    fileData.insert(fileData.end(), inputBuffer.begin(), inputBuffer.begin() + bytesRead);
-  }
-  gzclose(infile);
+  Clear();
 
-  memoryStream.SetContents(std::move(fileData));
   return ParseBinaryStream();
 }
 
@@ -64,6 +47,8 @@ bool Reader::ImportBinaryFileUncompressed(StringView filepath)
 {
   if (!ImportUncompressedFile(filepath))
     return false;
+
+  Clear();
 
   return ParseBinaryStream();
 }
@@ -159,11 +144,10 @@ std::vector<int8_t> Reader::ReadByteArray(StringView name)
 {
   HandleNesting(name, TAG::Byte_Array);
   TagPayload::ByteArray byteArray = ReadValue<TagPayload::ByteArray>(TAG::Byte_Array, name);
+  auto* bytePool = dataStore.Pool<byte>().data() + byteArray.poolIndex_;
   std::vector<int8_t> ret{
-    dataStore.Pool<byte>().data() +
-        byteArray.poolIndex_,
-    dataStore.Pool<byte>().data() +
-        byteArray.count_
+    bytePool,
+    bytePool + byteArray.count_
   };
   return ret;
 }
@@ -172,12 +156,12 @@ std::vector<int32_t> Reader::ReadIntArray(StringView name)
 {
   HandleNesting(name, TAG::Int_Array);
   TagPayload::IntArray intArray = ReadValue<TagPayload::IntArray>(TAG::Int_Array, name);
+  auto* intPool = dataStore.Pool<int32_t>().data() + intArray.poolIndex_;
   std::vector<int32_t> ret{
-    dataStore.Pool<int32_t>().data() +
-        intArray.poolIndex_,
-    dataStore.Pool<int32_t>().data() +
-        intArray.count_
+    intPool,
+    intPool + intArray.count_
   };
+  std::transform(ret.begin(), ret.end(), ret.begin(), swap_i32);
   return ret;
 }
 
@@ -185,12 +169,12 @@ std::vector<int64_t> Reader::ReadLongArray(StringView name)
 {
   HandleNesting(name, TAG::Long_Array);
   TagPayload::LongArray longArray = ReadValue<TagPayload::LongArray>(TAG::Long_Array, name);
+  auto* longPool = dataStore.Pool<int64_t>().data() + longArray.poolIndex_;
   std::vector<int64_t> ret{
-    dataStore.Pool<int64_t>().data() +
-        longArray.poolIndex_,
-    dataStore.Pool<int64_t>().data() +
-        longArray.count_
+    longPool,
+    longPool + longArray.count_
   };
+  std::transform(ret.begin(), ret.end(), ret.begin(), swap_i64);
   return ret;
 }
 
@@ -398,6 +382,43 @@ StringView Reader::Read(StringView name)
 //  return MaybeReadDouble(name);
 //}
 
+void Reader::Clear()
+{
+  dataStore.Clear();
+  decltype(containers)().swap(containers);
+}
+
+bool Reader::ImportCompressedFile(StringView filepath)
+{
+  gzFile infile = gzopen(filepath.data(), "rb");
+  if (!infile) return false;
+
+  std::vector<uint8_t> fileData;
+  std::array<uint8_t, 8192> inputBuffer{};
+  bool reading = true;
+  while (reading)
+  {
+    size_t const bytesRead = gzfread(inputBuffer.data(), sizeof(uint8_t), inputBuffer.size(), infile);
+    if (bytesRead < inputBuffer.size())
+    {
+      if (gzeof(infile))
+      {
+        reading = false;
+      }
+      int err;
+      gzerror(infile, &err);
+      if (err)
+        return false;
+    }
+    fileData.insert(fileData.end(), inputBuffer.begin(), inputBuffer.begin() + bytesRead);
+  }
+  gzclose(infile);
+
+  memoryStream.SetContents(std::move(fileData));
+
+  return true;
+}
+
 bool Reader::ImportUncompressedFile(StringView filepath)
 {
   FILE* infile = fopen(filepath.data(), "rb");
@@ -561,6 +582,7 @@ bool Reader::HandleNesting(StringView name, TAG t)
         return false;
       }
     }
+    ++container.currentIndex;
   }
   else if (container.Type() == TAG::Compound)
   {
@@ -581,8 +603,8 @@ bool Reader::OpenContainer(TAG t, StringView name)
   {
     ContainerInfo newContainer{};
     newContainer.named = false;
-    newContainer.Type() = t;
-    newContainer.PoolIndex(dataStore) = container.currentIndex - 1;
+    newContainer.type = t;
+    newContainer.anonContainer.poolIndex = (container.currentIndex - 1) + container.PoolIndex(dataStore);
     containers.push(newContainer);
 
     return true;
@@ -629,7 +651,7 @@ T& Reader::ReadValue(TAG t, StringView name)
     }
   }
   assert(!"Internal Error - This should never happen");
-  return T{};
+  return *static_cast<T*>(nullptr);
 }
 
 } // namespace ImNBT
