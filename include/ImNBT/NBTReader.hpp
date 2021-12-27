@@ -27,6 +27,9 @@ public:
   bool ImportBinaryFile(StringView filepath);
   bool ImportBinaryFileUncompressed(StringView filepath);
 
+  bool ImportString(char const* data, uint32_t length);
+  bool ImportBinary(uint8_t const* data, uint32_t length);
+
   /*!
    * \brief Opens a compound for reading. This means that all reads until CloseCompound() is called will be read from this compound.
    * Compounds are analogous to dictionaries/structs and contain named tags of any type.

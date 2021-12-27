@@ -53,6 +53,20 @@ bool Reader::ImportBinaryFileUncompressed(StringView filepath)
   return ParseBinaryStream();
 }
 
+bool Reader::ImportString(char const* data, uint32_t length)
+{
+  std::vector<uint8_t> mem(data, data + length);
+  memoryStream.SetContents(std::move(mem));
+  return ParseTextStream();
+}
+
+bool Reader::ImportBinary(uint8_t const* data, uint32_t length)
+{
+  std::vector mem(data, data + length);
+  memoryStream.SetContents(std::move(mem));
+  return ParseBinaryStream();
+}
+
 bool Reader::OpenCompound(StringView name)
 {
   if (!HandleNesting(name, TAG::Compound))
