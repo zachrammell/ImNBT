@@ -202,9 +202,9 @@ bool Writer::ExportBinary(std::vector<uint8_t>& out)
 
 void Writer::OutputBinaryTag(std::vector<uint8_t>& out, NamedDataTag const& tag)
 {
-  Store(out, tag.type);
+  Store(out, tag.dataTag.type);
   OutputBinaryStr(out, tag.name);
-  OutputBinaryPayload(out, tag);
+  OutputBinaryPayload(out, tag.dataTag);
 }
 
 void Writer::OutputBinaryStr(std::vector<uint8_t>& out, StringView str)
@@ -219,37 +219,37 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
   switch (tag.type)
   {
     case TAG::Byte: {
-      Store(out, tag.As<byte>());
+      Store(out, tag.payload.As<byte>());
     }
     break;
     case TAG::Short: {
-      Store(out, swap_i16(tag.As<int16_t>()));
+      Store(out, swap_i16(tag.payload.As<int16_t>()));
     }
     break;
     case TAG::Int: {
-      Store(out, swap_i32(tag.As<int32_t>()));
+      Store(out, swap_i32(tag.payload.As<int32_t>()));
     }
     break;
     case TAG::Long: {
-      Store(out, swap_i64(tag.As<int64_t>()));
+      Store(out, swap_i64(tag.payload.As<int64_t>()));
     }
     break;
     case TAG::Float: {
-      Store(out, swap_f32(tag.As<float>()));
+      Store(out, swap_f32(tag.payload.As<float>()));
     }
     break;
     case TAG::Double: {
-      Store(out, swap_f64(tag.As<double>()));
+      Store(out, swap_f64(tag.payload.As<double>()));
     }
     break;
     case TAG::Byte_Array: {
-      auto& byteArray = tag.As<TagPayload::ByteArray>();
+      auto& byteArray = tag.payload.As<TagPayload::ByteArray>();
       Store(out, swap_i32(byteArray.count_));
       StoreRange(out, dataStore.Pool<byte>().data() + byteArray.poolIndex_, byteArray.count_);
     }
     break;
     case TAG::Int_Array: {
-      auto& intArray = tag.As<TagPayload::IntArray>();
+      auto& intArray = tag.payload.As<TagPayload::IntArray>();
       auto intPool = dataStore.Pool<int32_t>().data() + intArray.poolIndex_;
       Store(out, swap_i32(intArray.count_));
       for (int i = 0; i < intArray.count_; ++i)
@@ -259,7 +259,7 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
     }
     break;
     case TAG::Long_Array: {
-      auto& longArray = tag.As<TagPayload::LongArray>();
+      auto& longArray = tag.payload.As<TagPayload::LongArray>();
       auto longPool = dataStore.Pool<int64_t>().data() + longArray.poolIndex_;
       Store(out, swap_i32(longArray.count_));
       for (int i = 0; i < longArray.count_; ++i)
@@ -269,13 +269,13 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
     }
     break;
     case TAG::String: {
-      auto& string = tag.As<TagPayload::String>();
+      auto& string = tag.payload.As<TagPayload::String>();
       Store(out, swap_u16(string.length_));
       StoreRange(out, dataStore.Pool<char>().data() + string.poolIndex_, string.length_);
     }
     break;
     case TAG::List: {
-      auto& list = tag.As<TagPayload::List>();
+      auto& list = tag.payload.As<TagPayload::List>();
       if (list.count_ == 0)
       {
         Store(out, TAG::End);
@@ -389,7 +389,7 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
           {
             DataTag sublistTag;
             sublistTag.type = TAG::List;
-            sublistTag.Set(listPool[i]);
+            sublistTag.payload.Set(listPool[i]);
             OutputBinaryPayload(out, sublistTag);
           }
         }
@@ -400,7 +400,7 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
           {
             DataTag subcompoundTag;
             subcompoundTag.type = TAG::Compound;
-            subcompoundTag.Set(compoundPool[i]);
+            subcompoundTag.payload.Set(compoundPool[i]);
             OutputBinaryPayload(out, subcompoundTag);
           }
         }
@@ -409,7 +409,7 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
     }
     break;
     case TAG::Compound: {
-      auto& compound = tag.As<TagPayload::Compound>();
+      auto& compound = tag.payload.As<TagPayload::Compound>();
       for (auto namedTagIndex : dataStore.compoundStorage[compound.storageIndex_])
       {
         OutputBinaryTag(out, dataStore.namedTags[namedTagIndex]);
@@ -428,7 +428,7 @@ void Writer::OutputTextTag(std::ostream& out, NamedDataTag const& tag)
     OutputTextStr(out, tag.name);
     out << ':';
   }
-  OutputTextPayload(out, tag);
+  OutputTextPayload(out, tag.dataTag);
 }
 
 void Writer::OutputTextStr(std::ostream& out, StringView str)
@@ -441,34 +441,34 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
   switch (tag.type)
   {
     case TAG::Byte: {
-      out << std::to_string(tag.As<byte>()) << 'b';
+      out << std::to_string(tag.payload.As<byte>()) << 'b';
     }
     break;
     case TAG::Short: {
-      out << tag.As<int16_t>() << 's';
+      out << tag.payload.As<int16_t>() << 's';
     }
     break;
     case TAG::Int: {
-      out << tag.As<int32_t>();
+      out << tag.payload.As<int32_t>();
     }
     break;
     case TAG::Long: {
-      out << tag.As<int64_t>() << 'l';
+      out << tag.payload.As<int64_t>() << 'l';
     }
     break;
     case TAG::Float: {
       out << std::setprecision(7);
-      out << tag.As<float>() << 'f';
+      out << tag.payload.As<float>() << 'f';
     }
     break;
     case TAG::Double: {
       out << std::setprecision(15);
-      out << tag.As<double>();
+      out << tag.payload.As<double>();
     }
     break;
     case TAG::Byte_Array: {
       out << "[B;";
-      auto& byteArray = tag.As<TagPayload::ByteArray>();
+      auto& byteArray = tag.payload.As<TagPayload::ByteArray>();
       auto bytePool = dataStore.Pool<byte>().data() + byteArray.poolIndex_;
       for (int i = 0; i < byteArray.count_ - 1; ++i)
       {
@@ -480,7 +480,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
     break;
     case TAG::Int_Array: {
       out << "[I;";
-      auto& intArray = tag.As<TagPayload::IntArray>();
+      auto& intArray = tag.payload.As<TagPayload::IntArray>();
       auto intPool = dataStore.Pool<int32_t>().data() + intArray.poolIndex_;
       for (int i = 0; i < intArray.count_ - 1; ++i)
       {
@@ -492,7 +492,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
     break;
     case TAG::Long_Array: {
       out << "[L;";
-      auto& longArray = tag.As<TagPayload::LongArray>();
+      auto& longArray = tag.payload.As<TagPayload::LongArray>();
       auto longPool = dataStore.Pool<int64_t>().data() + longArray.poolIndex_;
       for (int i = 0; i < longArray.count_ - 1; ++i)
       {
@@ -503,13 +503,13 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
     }
     break;
     case TAG::String: {
-      auto& string = tag.As<TagPayload::String>();
+      auto& string = tag.payload.As<TagPayload::String>();
       OutputTextStr(out, { dataStore.Pool<char>().data() + string.poolIndex_, string.length_ });
     }
     break;
     case TAG::List: {
       out << '[';
-      auto& list = tag.As<TagPayload::List>();
+      auto& list = tag.payload.As<TagPayload::List>();
       if (list.count_ == 0)
       {
         out << ']';
@@ -581,7 +581,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
             out << Spacing;
             DataTag newTag;
             newTag.type = list.elementType_;
-            newTag.Set(byteArrayPool[i]);
+            newTag.payload.Set(byteArrayPool[i]);
             OutputTextPayload(out, newTag);
             if (i != list.count_ - 1)
               out << ',';
@@ -597,7 +597,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
             out << Spacing;
             DataTag newTag;
             newTag.type = list.elementType_;
-            newTag.Set(intArrayPool[i]);
+            newTag.payload.Set(intArrayPool[i]);
             OutputTextPayload(out, newTag);
             if (i != list.count_ - 1)
               out << ',';
@@ -613,7 +613,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
             out << Spacing;
             DataTag newTag;
             newTag.type = list.elementType_;
-            newTag.Set(longArrayPool[i]);
+            newTag.payload.Set(longArrayPool[i]);
             OutputTextPayload(out, newTag);
             if (i != list.count_ - 1)
               out << ',';
@@ -629,7 +629,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
             out << Spacing;
             DataTag newTag;
             newTag.type = list.elementType_;
-            newTag.Set(listPool[i]);
+            newTag.payload.Set(listPool[i]);
             OutputTextPayload(out, newTag);
             if (i != list.count_ - 1)
               out << ',';
@@ -645,7 +645,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
             out << Newline << Spacing;
             DataTag newTag;
             newTag.type = list.elementType_;
-            newTag.Set(compoundPool[i]);
+            newTag.payload.Set(compoundPool[i]);
             OutputTextPayload(out, newTag);
             if (i != list.count_ - 1)
               out << ',';
@@ -658,7 +658,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
     }
     break;
     case TAG::Compound: {
-      auto& compound = tag.As<TagPayload::Compound>();
+      auto& compound = tag.payload.As<TagPayload::Compound>();
       out << '{' << Newline;
       ++textOutputState.depth;
       for (auto namedTagIndex : dataStore.compoundStorage[compound.storageIndex_])

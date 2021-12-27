@@ -110,7 +110,7 @@ void Builder::Begin(StringView rootName)
   rootContainer.Type() = TAG::Compound;
   rootContainer.namedContainer.tagIndex = rootTagIndex;
 
-  dataStore.namedTags[rootTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+  dataStore.namedTags[rootTagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
   dataStore.compoundStorage.emplace_back();
 
   containers.push(rootContainer);
@@ -146,7 +146,7 @@ TAG& Builder::ContainerInfo::ElementType(DataStore& ds)
   assert(Type() == TAG::List);
   if (named)
   {
-    return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().elementType_;
+    return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().elementType_;
   }
   return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].elementType_;
 }
@@ -158,9 +158,9 @@ int32_t Builder::ContainerInfo::Count(DataStore& ds) const
     switch (Type())
     {
       case TAG::List:
-        return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
+        return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().count_;
       case TAG::Compound:
-        return ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_].size();
+        return ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_].size();
       default:
         assert(!"Builder : Internal Type Error - This should never happen.");
         return -1;
@@ -184,7 +184,7 @@ void Builder::ContainerInfo::IncrementCount(DataStore& ds)
   assert(Type() == TAG::List);
   if (named)
   {
-    ++ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().count_;
+    ++ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().count_;
   }
   else
   {
@@ -198,7 +198,7 @@ uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
   assert(Type() == TAG::Compound);
   if (named)
   {
-    return ds.namedTags[namedContainer.tagIndex].As<TagPayload::Compound>().storageIndex_;
+    return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_;
   }
   return ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_;
 }
@@ -209,7 +209,7 @@ size_t& Builder::ContainerInfo::PoolIndex(DataStore& ds)
   assert(Type() == TAG::List);
   if (named)
   {
-    return ds.namedTags[namedContainer.tagIndex].As<TagPayload::List>().poolIndex_;
+    return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().poolIndex_;
   }
   return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].poolIndex_;
 }
@@ -231,7 +231,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
   if (container.Type() == TAG::Compound)
   {
     NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
-    dataStore.namedTags[newTagIndex].As<T>() = valueGetter();
+    dataStore.namedTags[newTagIndex].dataTag.payload.As<T>() = valueGetter();
     dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
     if (IsContainer(type))
     {
@@ -241,7 +241,7 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
       newContainer.namedContainer.tagIndex = newTagIndex;
       if (type == TAG::Compound)
       {
-        dataStore.namedTags[newTagIndex].As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+        dataStore.namedTags[newTagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
         dataStore.compoundStorage.emplace_back();
       }
       containers.push(newContainer);

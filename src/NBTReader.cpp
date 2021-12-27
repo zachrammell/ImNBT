@@ -566,8 +566,8 @@ Optional<T> Reader::MaybeReadValue(TAG t, StringView name)
       auto& tag = dataStore.namedTags[tagIndex];
       if (tag.name == name)
       {
-        assert(tag.type == t);
-        return tag.As<T>();
+        assert(tag.dataTag.type == t);
+        return tag.dataTag.payload.As<T>();
       }
     }
   }

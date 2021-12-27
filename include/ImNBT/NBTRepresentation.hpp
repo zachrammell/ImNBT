@@ -102,20 +102,22 @@ private:
       data_;
 };
 
-struct DataTag : TagPayload
+struct DataTag
 {
   DataTag(TAG type) : type(type) {}
   DataTag() = default;
 
-  TAG type;
+  TAG type = TAG::INVALID;
 #if defined(DEBUG)
   void* dataStore;
 #endif
+  TagPayload payload;
 };
 
-struct NamedDataTag : DataTag
+struct NamedDataTag
 {
   std::string name;
+  DataTag dataTag;
 };
 
 namespace Internal
@@ -171,13 +173,13 @@ struct DataStore
   Internal::NamedDataTagIndex AddNamedDataTag(TAG type, StringView name)
   {
     NamedDataTag tag;
-    tag.type = type;
+    tag.dataTag.type = type;
     tag.name = name;
 #if defined(DEBUG)
-    tag.dataStore = this;
+    tag.dataTag.dataStore = this;
 #endif
-    tag.Set<T>();
-    namedTags.emplace_back(tag);
+    tag.dataTag.payload.Set<T>();
+    namedTags.emplace_back(std::move(tag));
 
     return namedTags.size() - 1;
   }
