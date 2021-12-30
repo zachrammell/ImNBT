@@ -536,7 +536,7 @@ bool Reader::OpenContainer(TAG t, StringView name)
     for (auto tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
     {
       // TODO: if this ever becomes a performance issue, look at changing the vector to a set
-      if (dataStore.namedTags[tagIndex].name == name)
+      if (dataStore.namedTags[tagIndex].GetName() == name)
       {
         ContainerInfo newContainer{};
         newContainer.named = true;
@@ -554,14 +554,28 @@ bool Reader::OpenContainer(TAG t, StringView name)
 template<typename T>
 T& Reader::ReadValue(TAG t, StringView name)
 {
-  auto v = MaybeReadValue<T>(t, name);
-  if (!v.has_value())
+  ContainerInfo& container = containers.top();
+  if (container.type == TAG::List)
   {
-    assert(!"Reader Error: Value with given name not present");
-    // undefined real bad behavior on purpose
-    return *static_cast<T*>(nullptr);
+    return (dataStore.Pool<T>().data() + container.PoolIndex(dataStore))[container.currentIndex - 1];
   }
-  return v.value();
+  if (container.type == TAG::Compound)
+  {
+    // TODO: if this ever becomes a performance issue, look at changing the vector to a set
+    for (auto tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
+    {
+      auto& tag = dataStore.namedTags[tagIndex];
+      if (tag.GetName() == name)
+      {
+        assert(tag.dataTag.type == t);
+        return tag.dataTag.payload.As<T>();
+      }
+    }
+  }
+
+  assert(!"Reader Error: Value with given name not present");
+  // undefined real bad behavior on purpose
+  return *static_cast<T*>(nullptr);
 }
 
 template<typename T>
@@ -578,7 +592,7 @@ Optional<T> Reader::MaybeReadValue(TAG t, StringView name)
     for (auto tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
     {
       auto& tag = dataStore.namedTags[tagIndex];
-      if (tag.name == name)
+      if (tag.GetName() == name)
       {
         assert(tag.dataTag.type == t);
         return tag.dataTag.payload.As<T>();

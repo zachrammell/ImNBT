@@ -203,7 +203,7 @@ bool Writer::ExportBinary(std::vector<uint8_t>& out)
 void Writer::OutputBinaryTag(std::vector<uint8_t>& out, NamedDataTag const& tag)
 {
   Store(out, tag.dataTag.type);
-  OutputBinaryStr(out, tag.name);
+  OutputBinaryStr(out, tag.GetName());
   OutputBinaryPayload(out, tag.dataTag);
 }
 
@@ -423,9 +423,9 @@ void Writer::OutputBinaryPayload(std::vector<uint8_t>& out, DataTag const& tag)
 void Writer::OutputTextTag(std::ostream& out, NamedDataTag const& tag)
 {
   // root tag likely nameless
-  if (!tag.name.empty())
+  if (!tag.GetName().empty())
   {
-    OutputTextStr(out, tag.name);
+    OutputTextStr(out, tag.GetName());
     out << ':';
   }
   OutputTextPayload(out, tag.dataTag);

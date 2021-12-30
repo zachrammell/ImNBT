@@ -24,6 +24,11 @@ set(IMNBT_SOURCES
 
 add_library(ImNBT ${IMNBT_SOURCES} ${IMNBT_NATVIS})
 target_include_directories(ImNBT PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_options(ImNBT PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
+)
+target_compile_definitions(ImNBT PRIVATE $<$<CXX_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
 
 option(IMNBT_USE_ZLIB "Use zlib for compressed NBT" ON)
 if (IMNBT_USE_ZLIB)

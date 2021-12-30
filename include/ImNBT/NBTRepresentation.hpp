@@ -102,21 +102,24 @@ private:
       data_;
 };
 
-struct DataTag
+class DataTag
 {
+public:
   DataTag(TAG type) : type(type) {}
   DataTag() = default;
 
-  TAG type = TAG::INVALID;
-#if defined(DEBUG)
-  void* dataStore;
-#endif
   TagPayload payload;
+  TAG type = TAG::INVALID;
 };
 
-struct NamedDataTag
+class NamedDataTag
 {
+public:
+  StringView GetName() const;
+  void SetName(StringView inName);
+private:
   std::string name;
+public:
   DataTag dataTag;
 };
 
@@ -169,30 +172,9 @@ struct DataStore
 
   std::vector<NamedDataTag> namedTags;
 
-  template<typename T>
-  Internal::NamedDataTagIndex AddNamedDataTag(TAG type, StringView name)
-  {
-    NamedDataTag tag;
-    tag.dataTag.type = type;
-    tag.name = name;
-#if defined(DEBUG)
-    tag.dataTag.dataStore = this;
-#endif
-    tag.dataTag.payload.Set<T>();
-    namedTags.emplace_back(std::move(tag));
+  Internal::NamedDataTagIndex AddNamedDataTag(TAG type, StringView name);
 
-    return namedTags.size() - 1;
-  }
-
-  void Clear()
-  {
-    compoundStorage.clear();
-    namedTags.clear();
-    Internal::Pools<byte, int16_t, int32_t, int64_t, float, double, char,
-                    TagPayload::ByteArray, TagPayload::IntArray,
-                    TagPayload::LongArray, TagPayload::String,
-                    TagPayload::List, TagPayload::Compound>::Clear();
-  }
+  void Clear();
 };
 
 } // namespace ImNBT

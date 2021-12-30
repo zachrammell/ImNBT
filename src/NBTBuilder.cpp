@@ -103,14 +103,16 @@ void Builder::WriteString(StringView str, StringView name)
 
 void Builder::Begin(StringView rootName)
 {
-  NamedDataTagIndex rootTagIndex = dataStore.AddNamedDataTag<TagPayload::Compound>(TAG::Compound, rootName);
+  NamedDataTagIndex rootTagIndex = dataStore.AddNamedDataTag(TAG::Compound, rootName);
 
   ContainerInfo rootContainer{};
   rootContainer.named = true;
   rootContainer.Type() = TAG::Compound;
   rootContainer.namedContainer.tagIndex = rootTagIndex;
 
-  dataStore.namedTags[rootTagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_ = dataStore.compoundStorage.size();
+  TagPayload::Compound c;
+  c.storageIndex_ = dataStore.compoundStorage.size();
+  dataStore.namedTags[rootTagIndex].dataTag.payload.Set<TagPayload::Compound>(c);
   dataStore.compoundStorage.emplace_back();
 
   containers.push(rootContainer);
@@ -160,7 +162,7 @@ int32_t Builder::ContainerInfo::Count(DataStore& ds) const
       case TAG::List:
         return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().count_;
       case TAG::Compound:
-        return ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_].size();
+        return static_cast<int32_t>(ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_].size());
       default:
         assert(!"Builder : Internal Type Error - This should never happen.");
         return -1;
@@ -171,7 +173,7 @@ int32_t Builder::ContainerInfo::Count(DataStore& ds) const
     case TAG::List:
       return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].count_;
     case TAG::Compound:
-      return ds.compoundStorage[ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_].size();
+      return static_cast<int32_t>(ds.compoundStorage[ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_].size());
     default:
       assert(!"Builder : Internal Type Error - This should never happen.");
       return -1;
@@ -230,8 +232,8 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
   ContainerInfo& container = containers.top();
   if (container.Type() == TAG::Compound)
   {
-    NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag<T>(type, name);
-    dataStore.namedTags[newTagIndex].dataTag.payload.As<T>() = valueGetter();
+    NamedDataTagIndex newTagIndex = dataStore.AddNamedDataTag(type, name);
+    dataStore.namedTags[newTagIndex].dataTag.payload.Set<T>(valueGetter());
     dataStore.compoundStorage[container.Storage(dataStore)].push_back(newTagIndex);
     if (IsContainer(type))
     {
