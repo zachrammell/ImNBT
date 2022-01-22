@@ -526,7 +526,14 @@ bool Reader::OpenContainer(TAG t, StringView name)
     ContainerInfo newContainer{};
     newContainer.named = false;
     newContainer.type = t;
-    newContainer.anonContainer.poolIndex = (container.currentIndex - 1) + container.PoolIndex(dataStore);
+    if (t == TAG::List)
+    {
+      newContainer.anonContainer.list.poolIndex_ = (container.currentIndex - 1) + container.PoolIndex(dataStore);
+    }
+    if (t == TAG::Compound)
+    {
+      newContainer.anonContainer.compound.storageIndex_ = dataStore.Pool<TagPayload::Compound>()[(container.currentIndex - 1) + container.PoolIndex(dataStore)].storageIndex_;
+    }
     containers.push(newContainer);
 
     return true;

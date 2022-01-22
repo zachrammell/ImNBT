@@ -11,7 +11,7 @@ void WriterTest()
 
   writer.WriteLong(9223372036854775807ll, "longTest");
   writer.WriteShort(32767, "shortTest");
-  writer.WriteString(u8"HELLO WORLD THIS IS A TEST STRING ÅÄÖ!", "stringTest");
+  writer.WriteString(u8"HELLO WORLD THIS IS A TEST STRING Ã…Ã„Ã–!", "stringTest");
   writer.WriteFloat(0.4982315f, "floatTest");
   writer.WriteInt(2147483647, "intTest");
   if (writer.BeginCompound("nested compound test"))
@@ -105,7 +105,7 @@ void ReaderTest()
   auto shortTest = reader.ReadShort("shortTest");
   assert(shortTest == 32767);
   auto stringTest = reader.ReadString("stringTest");
-  assert(stringTest == u8"HELLO WORLD THIS IS A TEST STRING ÅÄÖ!");
+  assert(stringTest == u8"HELLO WORLD THIS IS A TEST STRING Ã…Ã„Ã–!");
   auto floatTest= reader.ReadFloat("floatTest");
   assert(floatTest == 0.4982315f);
   auto intTest = reader.ReadInt("intTest");
@@ -177,11 +177,85 @@ void ReaderTest()
   assert((longArrayTest == std::vector{ 1003370060459195070, -2401053089480183795 }));
 }
 
+void NestingDuplicationTest()
+{
+  ImNBT::Writer writer;
+
+  if (writer.BeginCompound("base"))
+  {
+    writer.WriteString("L1", "depth");
+    if (writer.BeginCompound("sub compound 1"))
+    {
+      writer.WriteInt(3, "x");
+      writer.EndCompound();
+    }
+    if (writer.BeginList("list of compounds 1"))
+    {
+      if (writer.BeginCompound())
+      {
+        writer.WriteString("L2", "depth");
+        if (writer.BeginList("list of compounds 2"))
+        {
+          if (writer.BeginCompound())
+          {
+            writer.WriteInt(15, "x");
+            writer.EndCompound();
+          }
+          writer.EndList();
+        }
+        writer.EndCompound();
+      }
+      writer.EndList();
+    }
+    writer.EndCompound();
+  }
+
+  writer.Finalize();
+
+  writer.ExportTextFile("./NestingDuplication.test");
+}
+
+void ListsOfListsOfListsTest()
+{
+  ImNBT::Writer writer;
+
+  if (writer.BeginList("base"))
+  {
+    for (int i = 0; i < 5; ++i)
+    {
+      if (writer.BeginList())
+      {
+        for (int j = 0; j < 5; ++j)
+        {
+          if (writer.BeginList())
+          {
+            for (int k = 0; k < 5; ++k)
+            {
+              writer.WriteInt(i * 100 + j * 10 + k);
+            }
+            writer.EndList();
+          }
+        }
+        writer.EndList();
+      }
+    }
+    writer.EndList();
+  }
+
+  writer.Finalize();
+
+  writer.ExportTextFile("./ListsOfListsOfLists.test");
+}
+
 int main()
 {
-  WriterTest();
+  //WriterTest();
 
-  ReaderTest();
+  //ReaderTest();
+
+  NestingDuplicationTest();
+
+  ListsOfListsOfListsTest();
 
   return 0;
 }

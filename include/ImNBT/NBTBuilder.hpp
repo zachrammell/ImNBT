@@ -89,12 +89,20 @@ public:
   void WriteLongArray(int64_t const* array, int32_t count, StringView name = "");
   void WriteString(StringView str, StringView name = "");
 
-  void Begin(StringView rootName = "");
   void Finalize();
+protected:
+  void Begin(StringView rootName = "");
   bool Finalized() const;
 
-protected:
   DataStore dataStore;
+
+  struct TemporaryContainer
+  {
+    TAG type;
+    Internal::Pools<TagPayload::List, TagPayload::Compound> data;
+  };
+
+  std::stack<TemporaryContainer> temporaryContainers;
 
   struct ContainerInfo
   {
@@ -105,14 +113,16 @@ protected:
     {
       Internal::NamedDataTagIndex tagIndex;
     };
-    struct AnonContainer
+    union AnonContainer
     {
-      uint64_t poolIndex;
+      TagPayload::List list;
+      TagPayload::Compound compound;
     };
-    union
+    struct
     {
       NamedContainer namedContainer;
       AnonContainer anonContainer;
+      TemporaryContainer* temporaryContainer = nullptr;
     };
 
     TAG& Type();

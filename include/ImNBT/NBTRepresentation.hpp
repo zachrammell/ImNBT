@@ -9,6 +9,7 @@ namespace ImNBT
 {
 
 using StringView = std::string_view;
+#define ImNBT_ALL_TYPES byte, int16_t, int32_t, int64_t, float, double, char, TagPayload::ByteArray, TagPayload::IntArray, TagPayload::LongArray, TagPayload::String, TagPayload::List, TagPayload::Compound
 
 struct byte
 {
@@ -94,12 +95,7 @@ struct TagPayload
   }
 
 private:
-  std::variant<byte, int16_t, int32_t, int64_t, float, double, char,
-               TagPayload::ByteArray, TagPayload::IntArray,
-               TagPayload::LongArray, TagPayload::String,
-               TagPayload::List, TagPayload::Compound //
-               >
-      data_;
+  std::variant<ImNBT_ALL_TYPES> data_;
 };
 
 class DataTag
@@ -158,15 +154,12 @@ struct Pools
   }
 };
 
+using AllPools = Internal::Pools<ImNBT_ALL_TYPES>;
+
 } // namespace Internal
 
-struct DataStore
-    : Internal::Pools<byte, int16_t, int32_t, int64_t, float, double, char,
-                      TagPayload::ByteArray, TagPayload::IntArray,
-                      TagPayload::LongArray, TagPayload::String,
-                      TagPayload::List, TagPayload::Compound>
+struct DataStore : Internal::AllPools
 {
-
   // sets of indices into namedTags
   std::vector<std::vector<Internal::NamedDataTagIndex>> compoundStorage;
 
@@ -176,5 +169,7 @@ struct DataStore
 
   void Clear();
 };
+
+#undef ImNBT_ALL_TYPES
 
 } // namespace ImNBT

@@ -16,7 +16,25 @@ void Builder::EndCompound()
 {
   ContainerInfo& container = containers.top();
   assert(container.Type() == TAG::Compound);
+  if (container.temporaryContainer)
+  {
+    auto& pool = dataStore.Pool<TagPayload::Compound>();
+    int64_t const currentSize = static_cast<int64_t>(pool.size());
+    auto& tempPool = container.temporaryContainer->data.Pool<TagPayload::Compound>();
+    pool.insert(pool.end(), tempPool.begin(), tempPool.end());
+    container.PoolIndex(dataStore) = currentSize;
+    assert(container.temporaryContainer == &temporaryContainers.top());
+    temporaryContainers.pop();
+  }
+  TagPayload::Compound compound{ container.Storage(dataStore)};
   containers.pop();
+  if (containers.empty())
+    return;
+  ContainerInfo& parentContainer = containers.top();
+  if (parentContainer.temporaryContainer)
+  {
+    parentContainer.temporaryContainer->data.Pool<TagPayload::Compound>()[parentContainer.currentIndex++] = compound;
+  }
 }
 
 bool Builder::BeginList(StringView name)
@@ -28,7 +46,36 @@ void Builder::EndList()
 {
   ContainerInfo& container = containers.top();
   assert(container.Type() == TAG::List);
+  if (container.temporaryContainer)
+  {
+    // TODO: update elements in temporary container data pool
+    int64_t currentSize = -1;
+    if (container.ElementType(dataStore) == TAG::List)
+    {
+      auto& pool = dataStore.Pool<TagPayload::List>();
+      currentSize = static_cast<int64_t>(pool.size());
+      auto& tempPool = container.temporaryContainer->data.Pool<TagPayload::List>();
+      pool.insert(pool.end(), tempPool.begin(), tempPool.end());
+
+    }
+    else if (container.ElementType(dataStore) == TAG::Compound)
+    {
+      auto& pool = dataStore.Pool<TagPayload::Compound>();
+      currentSize = static_cast<int64_t>(pool.size());
+      auto& tempPool = container.temporaryContainer->data.Pool<TagPayload::Compound>();
+      pool.insert(pool.end(), tempPool.begin(), tempPool.end());
+    }
+    container.PoolIndex(dataStore) = currentSize;
+    assert(container.temporaryContainer == &temporaryContainers.top());
+    temporaryContainers.pop();
+  }
+  TagPayload::List list{ container.ElementType(dataStore), container.Count(dataStore), container.PoolIndex(dataStore) };
   containers.pop();
+  ContainerInfo& parentContainer = containers.top();
+  if (parentContainer.temporaryContainer)
+  {
+    parentContainer.temporaryContainer->data.Pool<TagPayload::List>()[parentContainer.currentIndex++] = list;
+  }
 }
 
 void Builder::WriteByte(int8_t b, StringView name)
@@ -150,7 +197,7 @@ TAG& Builder::ContainerInfo::ElementType(DataStore& ds)
   {
     return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().elementType_;
   }
-  return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].elementType_;
+  return anonContainer.list.elementType_;
 }
 
 int32_t Builder::ContainerInfo::Count(DataStore& ds) const
@@ -171,9 +218,9 @@ int32_t Builder::ContainerInfo::Count(DataStore& ds) const
   switch (Type())
   {
     case TAG::List:
-      return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].count_;
+      return anonContainer.list.count_;
     case TAG::Compound:
-      return static_cast<int32_t>(ds.compoundStorage[ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_].size());
+      return static_cast<int32_t>(ds.compoundStorage[anonContainer.compound.storageIndex_].size());
     default:
       assert(!"Builder : Internal Type Error - This should never happen.");
       return -1;
@@ -190,7 +237,7 @@ void Builder::ContainerInfo::IncrementCount(DataStore& ds)
   }
   else
   {
-    ++ds.Pool<TagPayload::List>()[anonContainer.poolIndex].count_;
+    ++anonContainer.list.count_;
   }
 }
 
@@ -202,7 +249,7 @@ uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
   {
     return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_;
   }
-  return ds.Pool<TagPayload::Compound>()[anonContainer.poolIndex].storageIndex_;
+  return anonContainer.compound.storageIndex_;
 }
 
 size_t& Builder::ContainerInfo::PoolIndex(DataStore& ds)
@@ -213,7 +260,7 @@ size_t& Builder::ContainerInfo::PoolIndex(DataStore& ds)
   {
     return ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::List>().poolIndex_;
   }
-  return ds.Pool<TagPayload::List>()[anonContainer.poolIndex].poolIndex_;
+  return anonContainer.list.poolIndex_;
 }
 
 template<typename T, typename Fn>
@@ -271,26 +318,41 @@ bool Builder::WriteTag(TAG type, StringView name, Fn valueGetter)
         return false;
       }
     }
-    uint64_t poolIndex = dataStore.Pool<T>().size();
-    dataStore.Pool<T>().push_back(valueGetter());
-    if (container.Count(dataStore) == 0)
-    {
-      container.PoolIndex(dataStore) = poolIndex;
-    }
-    container.IncrementCount(dataStore);
     if (IsContainer(type))
     {
+      if (container.Count(dataStore) == 0)
+      {
+        TemporaryContainer temporaryContainer{};
+        temporaryContainer.type = type;
+        temporaryContainers.push(temporaryContainer);
+        container.temporaryContainer = &temporaryContainers.top();
+      }
+      if constexpr (std::is_same_v<T, TagPayload::List> || std::is_same_v<T, TagPayload::Compound>)
+      {
+        container.temporaryContainer->data.Pool<T>().push_back(valueGetter());
+      }
+
       ContainerInfo newContainer{};
       newContainer.named = false;
       newContainer.Type() = type;
-      newContainer.anonContainer.poolIndex = poolIndex;
       if (type == TAG::Compound)
       {
-        dataStore.Pool<TagPayload::Compound>()[poolIndex].storageIndex_ = dataStore.compoundStorage.size();
+        newContainer.anonContainer.compound.storageIndex_ = dataStore.compoundStorage.size();
         dataStore.compoundStorage.emplace_back();
       }
+      
       containers.push(newContainer);
     }
+    else // ordinary data type
+    {
+      uint64_t poolIndex = dataStore.Pool<T>().size();
+      dataStore.Pool<T>().push_back(valueGetter());
+      if (container.Count(dataStore) == 0)
+      {
+        container.PoolIndex(dataStore) = poolIndex;
+      }
+    }
+    container.IncrementCount(dataStore);
   }
   return true;
 }
