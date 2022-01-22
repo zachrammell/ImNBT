@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
+#include <string>
 #include <string_view>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -113,8 +116,10 @@ class NamedDataTag
 public:
   StringView GetName() const;
   void SetName(StringView inName);
+
 private:
   std::string name;
+
 public:
   DataTag dataTag;
 };
