@@ -371,7 +371,8 @@ bool Reader::ParseBinaryStream()
 {
   // parse root tag
   TAG const type = RetrieveBinaryTag();
-  assert(type == TAG::Compound && "root compound tag exists.");
+  if (type != TAG::Compound)
+    return false;
   Begin(RetrieveBinaryStr());
 
   do {
