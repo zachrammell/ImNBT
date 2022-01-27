@@ -317,7 +317,7 @@ bool Reader::ImportCompressedFile(StringView filepath)
 
   std::vector<uint8_t> fileData;
   std::array<uint8_t, 8192> inputBuffer{};
-  bool reading = true;
+  bool reading = true, ret = true;
   while (reading)
   {
     size_t const bytesRead = gzfread(inputBuffer.data(), sizeof(uint8_t), inputBuffer.size(), infile);
@@ -330,15 +330,18 @@ bool Reader::ImportCompressedFile(StringView filepath)
       int err;
       gzerror(infile, &err);
       if (err)
-        return false;
+      {
+        ret = false;
+        goto cleanup;
+      }
     }
     fileData.insert(fileData.end(), inputBuffer.begin(), inputBuffer.begin() + bytesRead);
   }
-  gzclose(infile);
-
   memoryStream.SetContents(std::move(fileData));
 
-  return true;
+cleanup:
+  gzclose(infile);
+  return ret;
 }
 
 bool Reader::ImportUncompressedFile(StringView filepath)
@@ -346,20 +349,32 @@ bool Reader::ImportUncompressedFile(StringView filepath)
   FILE* infile = fopen(filepath.data(), "rb");
   if (!infile) return false;
 
+  bool ret = true;
+
   // get file size
   if (fseek(infile, 0, SEEK_END))
-    return false;
+  {
+    ret = false;
+    goto cleanup;
+  }
   size_t const fileSize = ftell(infile);
   rewind(infile);
 
-  std::vector<uint8_t> fileData(fileSize, {});
-  size_t const bytesRead = fread(fileData.data(), sizeof(uint8_t), fileSize, infile);
-  if (bytesRead != fileSize)
-    return false;
+  {
+    std::vector<uint8_t> fileData(fileSize, {});
+    size_t const bytesRead = fread(fileData.data(), sizeof(uint8_t), fileSize, infile);
+    if (bytesRead != fileSize)
+    {
+      ret = false;
+      goto cleanup;
+    }
 
-  memoryStream.SetContents(std::move(fileData));
+    memoryStream.SetContents(std::move(fileData));
+  }
 
-  return true;
+cleanup:
+  fclose(infile);
+  return ret;
 }
 
 bool Reader::ParseTextStream()
