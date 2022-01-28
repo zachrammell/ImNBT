@@ -357,10 +357,10 @@ bool Reader::ImportUncompressedFile(StringView filepath)
     ret = false;
     goto cleanup;
   }
-  size_t const fileSize = ftell(infile);
-  rewind(infile);
-
   {
+    size_t const fileSize = ftell(infile);
+    rewind(infile);
+
     std::vector<uint8_t> fileData(fileSize, {});
     size_t const bytesRead = fread(fileData.data(), sizeof(uint8_t), fileSize, infile);
     if (bytesRead != fileSize)
