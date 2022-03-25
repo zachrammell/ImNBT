@@ -150,6 +150,7 @@ public:
   template<typename T>
   Optional<T> MaybeRead(StringView name = "");
 
+  StringView GetFilePath() const { return filepath; }
 private:
   class MemoryStream
   {
@@ -192,6 +193,8 @@ private:
       data.clear();
     }
   } memoryStream;
+
+  std::string filepath;
 
   void Clear();
 

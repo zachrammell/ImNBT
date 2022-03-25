@@ -338,6 +338,7 @@ bool Reader::ImportCompressedFile(StringView filepath)
     fileData.insert(fileData.end(), inputBuffer.begin(), inputBuffer.begin() + bytesRead);
   }
   memoryStream.SetContents(std::move(fileData));
+  this->filepath = filepath;
 
 cleanup:
   gzclose(infile);
@@ -371,6 +372,7 @@ bool Reader::ImportUncompressedFile(StringView filepath)
 
     memoryStream.SetContents(std::move(fileData));
   }
+  this->filepath = filepath;
 
 cleanup:
   fclose(infile);
