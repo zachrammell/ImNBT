@@ -768,4 +768,7 @@ std::ostream& SpacingFn(std::ostream& out, int depth)
   return out;
 }
 
+#undef Newline
+#undef Spacing
+
 } // namespace ImNBT
