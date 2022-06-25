@@ -158,11 +158,7 @@ private:
     std::vector<uint8_t> data;
 
   public:
-    void SetContents(std::vector<uint8_t>&& inData)
-    {
-      Clear();
-      data = std::move(inData);
-    }
+    void SetContents(std::vector<uint8_t>&& inData);
 
     template<typename T>
     T Retrieve()
@@ -182,17 +178,81 @@ private:
       return valueAddress;
     }
 
-    void ResetPosition()
-    {
-      position = 0;
-    }
+    void Clear();
 
-    void Clear()
+    bool HasContents() const;
+
+    char CurrentByte() const;
+
+    char LookaheadByte(int bytes) const;
+
+    template<char... ToMatch>
+    bool MatchCurrentByte()
     {
-      ResetPosition();
-      data.clear();
+      if (CheckByte<ToMatch...>(CurrentByte()))
+      {
+        ++position;
+        return true;
+      }
+      return false;
+    }
+    template<char... ToSkip>
+    void SkipBytes()
+    {
+      while(CheckByte<ToSkip...>(data[position]))
+      {
+        ++position;
+      } 
     }
   } memoryStream;
+
+  struct Token
+  {
+    enum class Type
+    {
+      COMPOUND_BEGIN,   // {
+      COMPOUND_END,     // }
+      LIST_BEGIN,       // [
+      LIST_END,         // ]
+      NAME_DELIM,       // :
+      CONTAINER_DELIM,  // ,
+      STRING,           // ("(?:[^"]|(?:\\"))+")|('(?:[^']|(?:\\'))+')|([^,\[\]{} \n]+)
+      INTEGER,          // [0-9]+
+      REAL,             // [0-9]+\.[0-9]+
+    } type;
+    StringView text{};
+    char typeIndicator{}; // [bBsSlLfFdDI]
+  };
+
+  template<char... ToCheck>
+  static bool CheckByte(char byte)
+  {
+    return ((byte == ToCheck) || ...);
+  }
+
+  class TextTokenizer
+  {
+  public:
+    TextTokenizer(MemoryStream& stream);
+
+    void Tokenize();
+
+    Token const& Current() const;
+
+    bool Match(Token::Type type);
+  private:
+    MemoryStream& stream;
+    std::vector<Token> tokens;
+    size_t current = 0;
+
+    Optional<Token> ParseToken();
+
+    Optional<Token> TryParseListOpen();
+    Optional<Token> TryParseNumber();
+    Optional<Token> TryParseString();
+  };
+
+  TextTokenizer* textTokenizer = nullptr;
 
   std::string filepath;
 
@@ -211,6 +271,9 @@ private:
   std::string RetrieveBinaryStr();
   int32_t RetrieveBinaryArrayLen();
 
+  TAG ParseTextNamedTag();
+  TAG ParseTextPayload(StringView name = "");
+
   bool HandleNesting(StringView name, TAG t);
 
   bool OpenContainer(TAG t, StringView name);
@@ -220,6 +283,8 @@ private:
 
   template<typename T>
   Optional<T> MaybeReadValue(TAG t, StringView name);
+
+  template<typename T, void(Builder::*WriteArray)(T const*, int32_t, StringView), char...> friend auto PackedIntegerList(Reader* reader, TAG tag, StringView name) -> TAG;
 };
 
 } // namespace ImNBT

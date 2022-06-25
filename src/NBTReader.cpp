@@ -306,6 +306,206 @@ Optional<StringView> Reader::MaybeReadString(StringView name)
   };
 }
 
+void Reader::MemoryStream::SetContents(std::vector<uint8_t>&& inData)
+{
+  Clear();
+  data = std::move(inData);
+}
+
+void Reader::MemoryStream::Clear()
+{
+  position = 0;
+  data.clear();
+}
+
+bool Reader::MemoryStream::HasContents() const
+{
+  return position < data.size();
+}
+
+char Reader::MemoryStream::CurrentByte() const
+{
+  assert(HasContents());
+  return data[position];
+}
+
+char Reader::MemoryStream::LookaheadByte(int bytes) const
+{
+  assert(position + bytes < data.size());
+  return data[position + bytes];
+}
+
+Reader::TextTokenizer::TextTokenizer(MemoryStream& stream)
+  : stream(stream)
+{
+}
+
+void Reader::TextTokenizer::Tokenize()
+{
+  while (stream.HasContents())
+  {
+    if (auto token = ParseToken())
+    {
+      tokens.emplace_back(*token);
+    }
+  }
+}
+
+Reader::Token const& Reader::TextTokenizer::Current() const
+{
+  return tokens[current];
+}
+
+bool Reader::TextTokenizer::Match(Token::Type type)
+{
+  if (tokens[current].type == type)
+  {
+    ++current;
+    return true;
+  }
+  return false;
+}
+
+Optional<Reader::Token> Reader::TextTokenizer::ParseToken()
+{
+  stream.SkipBytes<' ', '\r', '\n', '\t'>();
+  char const c = stream.CurrentByte();
+  switch (c)
+  {
+    case '{':
+      stream.Retrieve<char>();
+      return Token{ Token::Type::COMPOUND_BEGIN };
+    case '}':
+      stream.Retrieve<char>();
+      return Token{ Token::Type::COMPOUND_END };
+    case '[':
+      return TryParseListOpen();
+    case ']':
+      stream.Retrieve<char>();
+      return Token{ Token::Type::LIST_END };
+    case ':':
+      stream.Retrieve<char>();
+      return Token{ Token::Type::NAME_DELIM };
+    case ',':
+      stream.Retrieve<char>();
+      return Token{ Token::Type::CONTAINER_DELIM };
+    default:
+      break;
+  }
+  if (auto const number = TryParseNumber())
+  {
+    return number;
+  }
+  if (auto const string = TryParseString())
+  {
+    return string;
+  }
+  return {};
+}
+
+Optional<Reader::Token> Reader::TextTokenizer::TryParseListOpen()
+{
+  if (stream.MatchCurrentByte<'['>())
+  {
+    Token t{ Token::Type::LIST_BEGIN };
+    if (stream.LookaheadByte(1) == ';')
+    {
+      if (char type = stream.CurrentByte(); stream.MatchCurrentByte<'B', 'I', 'L'>())
+      {
+        t.typeIndicator = type;
+      }
+      // eat the `;`
+      (void) stream.Retrieve<char>();
+    }
+    return t;
+  }
+  return {};
+}
+
+Optional<Reader::Token> Reader::TextTokenizer::TryParseNumber()
+{
+  Token::Type type = Token::Type::INTEGER;
+  int offset = 0;
+  int digitCount = 0;
+
+  if (stream.LookaheadByte(offset) == '-' || stream.LookaheadByte(offset) == '+')
+  {
+    ++offset;
+  }
+  while (isdigit(stream.LookaheadByte(offset)))
+  {
+    ++offset;
+    ++digitCount;
+  }
+  if (stream.LookaheadByte(offset) == '.')
+  {
+    ++offset;
+    type = Token::Type::REAL;
+    while (isdigit(stream.LookaheadByte(offset)))
+    {
+      ++offset;
+      ++digitCount;
+    }
+  }
+  if (digitCount)
+  {
+    Token t;
+    t.type = type;
+    t.text = StringView(stream.RetrieveRangeView<char>(offset), offset);
+    if (char const suffix = stream.CurrentByte(); stream.MatchCurrentByte<'l', 'L', 'b', 'B', 's', 'S', 'f', 'F', 'd', 'D'>())
+    {
+      t.typeIndicator = suffix;
+    }
+    return t;
+  }
+  return {};
+}
+
+Optional<Reader::Token> Reader::TextTokenizer::TryParseString()
+{
+  int offset = 0;
+  char quote = '\0';
+  if (stream.LookaheadByte(offset) == '\'')
+  {
+    quote = '\'';
+    ++offset;
+  }
+  else if (stream.LookaheadByte(offset) == '\"')
+  {
+    quote = '\"';
+    ++offset;
+  }
+
+  if (quote)
+  {
+    while (!(stream.LookaheadByte(offset) == quote && stream.LookaheadByte(offset - 1) != '\\'))
+    {
+      ++offset;
+    }
+    if (offset >= 2)
+    {
+      (void) stream.Retrieve<char>();
+      Token t{ Token::Type::STRING };
+      t.text = StringView(stream.RetrieveRangeView<char>(offset), offset - 1);
+      return t;
+    }
+  }
+  else
+  {
+    while (!CheckByte<',', '[', ']', '{', '}', ' '>(stream.LookaheadByte(offset)))
+    {
+      ++offset;
+    }
+    if (offset >= 1)
+    {
+      Token t{ Token::Type::STRING };
+      t.text = StringView(stream.RetrieveRangeView<char>(offset), offset);
+      return t;
+    }
+  }
+  return {};
+}
+
 void Reader::Clear()
 {
   dataStore.Clear();
@@ -383,6 +583,27 @@ cleanup:
 
 bool Reader::ParseTextStream()
 {
+  TextTokenizer tokenizer(memoryStream);
+  tokenizer.Tokenize();
+
+  textTokenizer = &tokenizer;
+
+  if (!textTokenizer->Match(Token::Type::COMPOUND_BEGIN))
+    return false;
+
+  Begin();
+
+  do
+  {
+    if (ParseTextNamedTag() == TAG::End)
+      return false;
+  } while (textTokenizer->Match(Token::Type::CONTAINER_DELIM));
+
+  if (!textTokenizer->Match(Token::Type::COMPOUND_END))
+    return false;
+
+  textTokenizer = nullptr;
+
   return true;
 }
 
@@ -487,6 +708,187 @@ TAG Reader::RetrieveBinaryTag()
 int32_t Reader::RetrieveBinaryArrayLen()
 {
   return swap_i32(memoryStream.Retrieve<int32_t>());
+}
+
+template<typename T>
+static auto ByteSwap(T x) -> T
+{
+  if constexpr(sizeof(T) == 2)
+  {
+    uint16_t const tmp = swap_u16(reinterpret_cast<uint16_t&>(x));
+    return reinterpret_cast<T const&>(tmp);
+  }
+  if constexpr(sizeof(T) == 4)
+  {
+    uint32_t const tmp = swap_u32(reinterpret_cast<uint32_t&>(x));
+    return reinterpret_cast<T const&>(tmp);
+  }
+  if constexpr(sizeof(T) == 8)
+  {
+    uint64_t const tmp = swap_u64(reinterpret_cast<uint64_t&>(x));
+    return reinterpret_cast<T const&>(tmp);
+  }
+  return x;
+}
+
+template<typename T>
+static auto ParseNumber(StringView str) -> T
+{
+  T number;
+  std::from_chars(str.data(), str.data() + str.size(), number);
+  return number;
+}
+
+template<typename T, void(Builder::*WriteArray)(T const*, int32_t, StringView), char... Suffix>
+static auto PackedIntegerList(Reader* reader, TAG tag, StringView name) -> TAG
+{
+  using Token = Reader::Token;
+  Reader::TextTokenizer* textTokenizer = reader->textTokenizer;
+  std::vector<T> integers;
+  do
+  {
+    Token const& token = textTokenizer->Current();
+    if (!textTokenizer->Match(Token::Type::INTEGER))
+      return TAG::End;
+    if constexpr(sizeof...(Suffix) > 0)
+      if (!Reader::CheckByte<Suffix...>(token.typeIndicator))
+        return TAG::End;
+    integers.push_back(ParseNumber<T>(token.text));
+  } while (textTokenizer->Match(Token::Type::CONTAINER_DELIM));
+
+  if (!textTokenizer->Match(Token::Type::LIST_END))
+    return TAG::End;
+  std::transform(integers.begin(), integers.end(), integers.begin(), ByteSwap<T>);
+  (reader->*WriteArray)(integers.data(), integers.size(), name);
+  return tag;
+}
+
+TAG Reader::ParseTextNamedTag()
+{
+  Token const& name = textTokenizer->Current();
+  if (!textTokenizer->Match(Token::Type::STRING))
+    return TAG::End;
+  if (!textTokenizer->Match(Token::Type::NAME_DELIM))
+    return TAG::End;
+  return ParseTextPayload(name.text);
+}
+
+TAG Reader::ParseTextPayload(StringView name)
+{
+  if (textTokenizer->Match(Token::Type::COMPOUND_BEGIN) && BeginCompound(name))
+  {
+    while (ParseTextNamedTag() != TAG::End)
+    {
+      if (!textTokenizer->Match(Token::Type::CONTAINER_DELIM))
+        break;
+    }
+
+    if (textTokenizer->Match(Token::Type::COMPOUND_END))
+    {
+      EndCompound();
+      return TAG::Compound;
+    }
+
+    return TAG::End;
+  }
+  if (Token const& listOpen = textTokenizer->Current(); textTokenizer->Match(Token::Type::LIST_BEGIN))
+  {
+    switch (listOpen.typeIndicator)
+    {
+      case 'B': return PackedIntegerList<int8_t,  &Builder::WriteByteArray, 'b', 'B'>(this, TAG::Byte_Array, name);
+      case 'I': return PackedIntegerList<int32_t, &Builder::WriteIntArray>(this, TAG::Int_Array, name);
+      case 'L': return PackedIntegerList<int64_t, &Builder::WriteLongArray, 'l', 'L'>(this, TAG::Long_Array, name);
+      case '\0':
+        break;
+      default:
+        return TAG::End;
+    }
+    if (BeginList(name))
+    {
+      // empty list
+      if (textTokenizer->Match(Token::Type::LIST_END))
+      {
+        EndList();
+        return TAG::List;
+      }
+      do
+      {
+        if (ParseTextPayload() == TAG::End)
+          return TAG::End;
+      } while (textTokenizer->Match(Token::Type::CONTAINER_DELIM));
+
+      if (textTokenizer->Match(Token::Type::LIST_END))
+      {
+        EndList();
+        return TAG::List;
+      }
+    }
+    return TAG::End;
+  }
+  if (Token const& string = textTokenizer->Current(); textTokenizer->Match(Token::Type::STRING))
+  {
+    if (string.text == "true")
+    {
+      WriteByte(1, name);
+      return TAG::Byte;
+    }
+    if (string.text == "false")
+    {
+      WriteByte(0, name);
+      return TAG::Byte;
+    }
+    WriteString(string.text, name);
+    return TAG::String;
+  }
+  if (Token const& integer = textTokenizer->Current(); textTokenizer->Match(Token::Type::INTEGER))
+  {
+    switch (integer.typeIndicator)
+    {
+      case 'b':
+      case 'B': {
+        WriteByte(ParseNumber<int8_t>(integer.text), name);
+        return TAG::Byte;
+      }
+      case 's':
+      case 'S': {
+        WriteShort(ParseNumber<int16_t>(integer.text), name);
+        return TAG::Short;
+      }
+      case 'l':
+      case 'L':{
+        WriteLong(ParseNumber<int64_t>(integer.text), name);
+        return TAG::Long;
+      }
+      // ints do not use a suffix
+      case '\0': {
+        WriteInt(ParseNumber<int32_t>(integer.text), name);
+        return TAG::Int;
+      }
+      default:
+        return TAG::End;
+    }
+  }
+  if (Token const& real = textTokenizer->Current(); textTokenizer->Match(Token::Type::REAL))
+  {
+    switch (real.typeIndicator)
+    {
+      case 'f':
+      case 'F': {
+        WriteFloat(ParseNumber<float>(real.text), name);
+        return TAG::Float;
+      }
+      case 'd':
+      case 'D':
+      case '\0': {
+        WriteDouble(ParseNumber<double>(real.text), name);
+        return TAG::Float;
+      }
+      default:
+        return TAG::End;
+    }
+  }
+  
+  return TAG::End;
 }
 
 std::string Reader::RetrieveBinaryStr()
