@@ -206,7 +206,9 @@ Optional<int8_t> Reader::MaybeReadByte(StringView name)
 {
   if (!HandleNesting(name, TAG::Byte))
     return std::nullopt;
-  return MaybeReadValue<byte>(TAG::Byte, name);
+  if (auto b = MaybeReadValue<byte>(TAG::Byte, name))
+    return *b;
+  return {};
 }
 
 Optional<int16_t> Reader::MaybeReadShort(StringView name)
