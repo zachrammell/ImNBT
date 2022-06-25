@@ -20,7 +20,7 @@ void Store(std::vector<uint8_t>& v, T data)
 }
 
 template<typename T, std::enable_if_t<(sizeof(T) > sizeof(T*)), bool> = true>
-void Store(std::vector<uint8_t>& v, T& data)
+void Store(std::vector<uint8_t>& v, T const& data)
 {
   auto const size = v.size();
   v.resize(size + sizeof(T));
