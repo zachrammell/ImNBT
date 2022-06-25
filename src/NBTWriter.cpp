@@ -476,7 +476,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
         out << std::to_string(bytePool[i]) << "b,";
       }
       if (byteArray.count_)
-        out << bytePool[byteArray.count_ - 1] << "b]";
+        out << std::to_string(bytePool[byteArray.count_ - 1]) << "b]";
     }
     break;
     case TAG::Int_Array: {
@@ -524,7 +524,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
           {
             out << std::to_string(bytePool[i]) << "b,";
           }
-          out << bytePool[list.count_ - 1] << 'b';
+          out << std::to_string(bytePool[list.count_ - 1]) << 'b';
         }
         break;
         case TAG::Short: {
