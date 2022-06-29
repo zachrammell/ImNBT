@@ -161,49 +161,20 @@ private:
     void SetContents(std::vector<uint8_t>&& inData);
 
     template<typename T>
-    T Retrieve()
-    {
-      assert(position + sizeof(T) <= data.size());
-      T const* valueAddress = reinterpret_cast<T*>(data.data() + position);
-      position += sizeof(T);
-      return *valueAddress;
-    }
-
+    T Retrieve();
     template<typename T>
-    T const* RetrieveRangeView(size_t count)
-    {
-      assert(position + sizeof(T) * count <= data.size());
-      T const* valueAddress = reinterpret_cast<T*>(data.data() + position);
-      position += sizeof(T) * count;
-      return valueAddress;
-    }
+    T const* RetrieveRangeView(size_t count);
 
     void Clear();
-
     bool HasContents() const;
 
     char CurrentByte() const;
-
     char LookaheadByte(int bytes) const;
 
     template<char... ToMatch>
-    bool MatchCurrentByte()
-    {
-      if (CheckByte<ToMatch...>(CurrentByte()))
-      {
-        ++position;
-        return true;
-      }
-      return false;
-    }
+    bool MatchCurrentByte();
     template<char... ToSkip>
-    void SkipBytes()
-    {
-      while(CheckByte<ToSkip...>(data[position]))
-      {
-        ++position;
-      } 
-    }
+    void SkipBytes();
   } memoryStream;
 
   struct Token
@@ -225,10 +196,7 @@ private:
   };
 
   template<char... ToCheck>
-  static bool CheckByte(char byte)
-  {
-    return ((byte == ToCheck) || ...);
-  }
+  static bool CheckByte(char byte);
 
   class TextTokenizer
   {

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <iostream>
 
 namespace ImNBT
@@ -978,6 +979,50 @@ bool Reader::OpenContainer(TAG t, StringView name)
     }
   }
   return false;
+}
+
+template<typename T>
+T Reader::MemoryStream::Retrieve()
+{
+  assert(position + sizeof(T) <= data.size());
+  T const* valueAddress = reinterpret_cast<T*>(data.data() + position);
+  position += sizeof(T);
+  return *valueAddress;
+}
+
+template<typename T>
+T const* Reader::MemoryStream::RetrieveRangeView(size_t count)
+{
+  assert(position + sizeof(T) * count <= data.size());
+  T const* valueAddress = reinterpret_cast<T*>(data.data() + position);
+  position += sizeof(T) * count;
+  return valueAddress;
+}
+
+template<char... ToMatch>
+bool Reader::MemoryStream::MatchCurrentByte()
+{
+  if (Reader::CheckByte<ToMatch...>(CurrentByte()))
+  {
+    ++position;
+    return true;
+  }
+  return false;
+}
+
+template<char... ToSkip>
+void Reader::MemoryStream::SkipBytes()
+{
+  while (Reader::CheckByte<ToSkip...>(data[position]))
+  {
+    ++position;
+  }
+}
+
+template<char... ToCheck>
+bool Reader::CheckByte(char byte)
+{
+  return ((byte == ToCheck) || ...);
 }
 
 template<typename T>
