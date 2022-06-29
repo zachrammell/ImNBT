@@ -104,7 +104,7 @@ int32_t Reader::ListSize() const
     return container.Count(dataStore);
   }
   assert(!"Reader : Invalid List Size Read - Attempted to read a list's size when a list was not open.\n");
-  return -1;
+  return 0;
 }
 
 void Reader::CloseList()
@@ -1023,7 +1023,8 @@ Optional<T> Reader::MaybeReadValue(TAG t, StringView name)
       auto& tag = dataStore.namedTags[tagIndex];
       if (tag.GetName() == name)
       {
-        assert(tag.dataTag.type == t);
+        if (tag.dataTag.type != t)
+          return {};
         return tag.dataTag.payload.As<T>();
       }
     }

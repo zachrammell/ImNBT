@@ -212,7 +212,7 @@ int32_t Builder::ContainerInfo::Count(DataStore const& ds) const
         return static_cast<int32_t>(ds.compoundStorage[ds.namedTags[namedContainer.tagIndex].dataTag.payload.As<TagPayload::Compound>().storageIndex_].size());
       default:
         assert(!"Builder : Internal Type Error - This should never happen.");
-        return -1;
+        return 0;
     }
   }
   switch (Type())
@@ -223,7 +223,7 @@ int32_t Builder::ContainerInfo::Count(DataStore const& ds) const
       return static_cast<int32_t>(ds.compoundStorage[anonContainer.compound.storageIndex_].size());
     default:
       assert(!"Builder : Internal Type Error - This should never happen.");
-      return -1;
+      return 0;
   }
 }
 
