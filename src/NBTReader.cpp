@@ -307,6 +307,21 @@ Optional<StringView> Reader::MaybeReadString(StringView name)
   };
 }
 
+int32_t Reader::Count() const
+{
+  ContainerInfo const& container = containers.top();
+  return container.Count(dataStore);
+}
+
+Reader::CompoundView Reader::Names()
+{
+  ContainerInfo const& container = containers.top();
+  if (container.Type() != TAG::Compound)
+    return CompoundView{ nullptr, nullptr };
+
+  return CompoundView { &dataStore, &dataStore.compoundStorage[container.Storage(dataStore)] };
+}
+
 void Reader::MemoryStream::SetContents(std::vector<uint8_t>&& inData)
 {
   Clear();

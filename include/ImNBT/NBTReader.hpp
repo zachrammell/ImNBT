@@ -151,6 +151,93 @@ public:
   Optional<T> MaybeRead(StringView name = "");
 
   StringView GetFilePath() const { return filepath; }
+
+  // Advanced API
+public:
+  /*!
+   * \brief The number of tags in the currently open container.
+   * If a list is open, equivalent to calling ListSize().
+   * If a compound is open, equivalent to the number of names that Names() yields.
+   */
+  int32_t Count() const;
+
+  class CompoundView;
+
+  /*!
+   * \brief An iterable view of the names of tags in the currently open compound.
+   * Usage:
+   *
+   *  if (OpenCompound("my_compound"))
+   *  {
+   *    vector<StringView> arr {ListSize()};
+   *    for (StringView name : Names())
+   *    {
+   *      arr[i] = name;
+   *    }
+   *    CloseCompound();
+   *  }
+   *
+   * If no compound is open, yields a view with no elements.
+   */
+  CompoundView Names();
+
+  class CompoundView
+  {
+  public:
+    class NameProxy
+    {
+    public:
+      struct End {};
+      StringView operator++(int)
+      {
+        StringView view = operator*();
+        ++ntiIndex;
+        return view;
+      }
+      NameProxy& operator++()
+      {
+        ++ntiIndex;
+        return *this;
+      }
+      NameProxy& operator--()
+      {
+        ++ntiIndex;
+        return *this;
+      }
+      StringView operator*() const
+      {
+        return compoundView->dataStore->namedTags[(*compoundView->namedTagIndices)[ntiIndex]].GetName();
+      }
+      bool operator!=(End const&) const
+      {
+        return compoundView ? compoundView->namedTagIndices->size() != ntiIndex : true;
+      }
+      bool operator!=(NameProxy const& rhs) const
+      {
+        return compoundView == rhs.compoundView && ntiIndex == rhs.ntiIndex;
+      }
+    private:
+      CompoundView* compoundView;
+      int32_t ntiIndex = 0;
+      friend CompoundView;
+      NameProxy(CompoundView* view)
+        : compoundView(view)
+      {}
+    };
+
+    NameProxy begin() { return dataStore ? NameProxy(this) : NameProxy(nullptr); }
+    NameProxy::End end() { return {}; }
+  private:
+    DataStore const* dataStore;
+    std::vector<Internal::NamedDataTagIndex> const* namedTagIndices;
+    CompoundView(DataStore const* dataStore, std::vector<Internal::NamedDataTagIndex> const* namedTagIndices)
+      : dataStore(dataStore)
+      , namedTagIndices(namedTagIndices)
+    {}
+
+    friend NameProxy;
+    friend CompoundView Reader::Names();
+  };
 private:
   class MemoryStream
   {
