@@ -128,9 +128,9 @@ protected:
     TAG& Type();
     TAG Type() const;
     TAG& ElementType(DataStore& ds);
-    int32_t Count(DataStore& ds) const;
+    int32_t Count(DataStore const& ds) const;
     void IncrementCount(DataStore& ds);
-    uint64_t Storage(DataStore& ds);
+    uint64_t Storage(DataStore const& ds) const;
     size_t& PoolIndex(DataStore& ds);
   };
 

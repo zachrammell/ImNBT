@@ -200,7 +200,7 @@ TAG& Builder::ContainerInfo::ElementType(DataStore& ds)
   return anonContainer.list.elementType_;
 }
 
-int32_t Builder::ContainerInfo::Count(DataStore& ds) const
+int32_t Builder::ContainerInfo::Count(DataStore const& ds) const
 {
   if (named)
   {
@@ -241,7 +241,7 @@ void Builder::ContainerInfo::IncrementCount(DataStore& ds)
   }
 }
 
-uint64_t Builder::ContainerInfo::Storage(DataStore& ds)
+uint64_t Builder::ContainerInfo::Storage(DataStore const& ds) const
 {
   // only compounds can have storage
   assert(Type() == TAG::Compound);

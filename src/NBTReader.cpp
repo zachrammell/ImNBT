@@ -96,9 +96,9 @@ bool Reader::OpenList(StringView name)
   return OpenContainer(TAG::List, name);
 }
 
-int32_t Reader::ListSize()
+int32_t Reader::ListSize() const
 {
-  ContainerInfo& container = containers.top();
+  ContainerInfo const& container = containers.top();
   if (container.type == TAG::List)
   {
     return container.Count(dataStore);

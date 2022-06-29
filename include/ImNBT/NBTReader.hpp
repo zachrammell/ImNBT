@@ -95,7 +95,7 @@ public:
    *
    * \return the number of elements in the currently open list.
    */
-  int32_t ListSize();
+  int32_t ListSize() const;
   /*!
    * \brief Closes the last list that was opened for reading. Should only be called if OpenList() returned true.
    * After calling, reads will no longer be taken from the list.
