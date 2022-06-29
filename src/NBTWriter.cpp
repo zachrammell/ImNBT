@@ -500,7 +500,7 @@ void Writer::OutputTextPayload(std::ostream& out, DataTag const& tag)
         out << longPool[i] << "l,";
       }
       if (longArray.count_)
-        out << longPool[longArray.count_ - 1] << "L]";
+        out << longPool[longArray.count_ - 1] << "l]";
     }
     break;
     case TAG::String: {
