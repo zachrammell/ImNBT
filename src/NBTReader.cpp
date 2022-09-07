@@ -978,10 +978,11 @@ bool Reader::OpenContainer(TAG t, StringView name)
   }
   if (container.Type() == TAG::Compound)
   {
-    for (auto tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
+    for (Internal::NamedDataTagIndex tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
     {
+      NamedDataTag const& tag = dataStore.namedTags[tagIndex];
       // TODO: if this ever becomes a performance issue, look at changing the vector to a set
-      if (dataStore.namedTags[tagIndex].GetName() == name)
+      if (tag.GetName() == name && tag.dataTag.type == t)
       {
         ContainerInfo newContainer{};
         newContainer.named = true;
@@ -1078,7 +1079,7 @@ Optional<T> Reader::MaybeReadValue(TAG t, StringView name)
   if (container.type == TAG::Compound)
   {
     // TODO: if this ever becomes a performance issue, look at changing the vector to a set
-    for (auto tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
+    for (Internal::NamedDataTagIndex tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
     {
       auto& tag = dataStore.namedTags[tagIndex];
       if (tag.GetName() == name)
