@@ -82,7 +82,10 @@ void Reader::CloseCompound()
   ContainerInfo& container = containers.top();
   if (container.type == TAG::Compound)
   {
-    containers.pop();
+    if (!inVirtualRootCompound)
+    {
+      containers.pop();
+    }
     return;
   }
   assert(!"Reader : Compound Close Mismatch - Attempted to close a compound when a compound was not open.\n");
@@ -775,7 +778,7 @@ static auto PackedIntegerList(Reader* reader, TAG tag, StringView name) -> TAG
   if (!textTokenizer->Match(Token::Type::LIST_END))
     return TAG::End;
   std::transform(integers.begin(), integers.end(), integers.begin(), ByteSwap<T>);
-  (reader->*WriteArray)(integers.data(), integers.size(), name);
+  (reader->*WriteArray)(integers.data(), static_cast<int32_t>(integers.size()), name);
   return tag;
 }
 
@@ -948,7 +951,12 @@ bool Reader::HandleNesting(StringView name, TAG t)
   {
     if (name.empty())
     {
-      // bad, compound tags must have names
+      // allow unnamed compound reads at file level for simplicity in Read implementations
+      if ((t == TAG::Compound) && (containers.size() == 1) && !inVirtualRootCompound)
+      {
+        return true;
+      }
+      // bad, other compound tags must have names
       assert(!"Reader : Compound Unnamed Read - Attempted to read unnamed tag from a compound.");
       return false;
     }
@@ -978,6 +986,11 @@ bool Reader::OpenContainer(TAG t, StringView name)
   }
   if (container.Type() == TAG::Compound)
   {
+    if (name.empty() && (t == TAG::Compound) && (containers.size() == 1))
+    {
+      inVirtualRootCompound = true;
+      return true;
+    }
     for (Internal::NamedDataTagIndex tagIndex : dataStore.compoundStorage[container.Storage(dataStore)])
     {
       NamedDataTag const& tag = dataStore.namedTags[tagIndex];

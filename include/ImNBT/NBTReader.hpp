@@ -311,6 +311,8 @@ private:
 
   std::string filepath;
 
+  bool inVirtualRootCompound = false;
+
   void Clear();
 
   bool ImportCompressedFile(StringView filepath);
